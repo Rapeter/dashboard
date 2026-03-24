@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { useNavigate, Link } from 'react-router';
 import { Button } from '../components/ui/button';
 import { TreeDeciduous, ArrowRight, BarChart3, DollarSign, Sprout, CheckCircle, Mail, Phone, MapPin } from 'lucide-react';
 
@@ -15,10 +15,6 @@ export function Login() {
 
   const handleExplorePublicData = () => {
     navigate('/dashboard');
-  };
-
-  const navigateToDashboard = (page: string) => {
-    navigate(`/dashboard?page=${page}`);
   };
 
   return (
@@ -51,13 +47,13 @@ export function Login() {
 
       {/* Hero Section */}
       <div className="relative" style={{ height: '70vh' }}>
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1571034788009-3024c09ba9af?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0cnVmZmxlJTIwY3VsdGl2YXRpb24lMjB0cmVlc3xlbnwxfHx8fDE3NzQyNDIzMTN8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral')`
           }}
         />
-        
+
         <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center">
           <div className="max-w-2xl">
             {/* Badge */}
@@ -84,14 +80,14 @@ export function Login() {
 
             {/* Buttons */}
             <div className="flex gap-4">
-              <Button 
+              <Button
                 onClick={handleGetStarted}
                 className="bg-[#10B981] hover:bg-[#059669] text-white px-6 py-3 rounded-lg font-medium transition-colors"
               >
                 Get Started
                 <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
-              <Button 
+              <Button
                 onClick={handleExplorePublicData}
                 variant="outline"
                 className="bg-transparent border-2 border-white text-white hover:bg-white/10 px-6 py-3 rounded-lg font-medium transition-colors"
@@ -129,24 +125,24 @@ export function Login() {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">About Truffle Dashboard</h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              The Truffle Dashboard is a comprehensive benchmarking platform designed to support 
+              The Truffle Dashboard is a comprehensive benchmarking platform designed to support
               the Australian truffle industry with data-driven insights and analytics.
             </p>
           </div>
-          
+
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <img 
-                src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800" 
-                alt="Truffle farming" 
+              <img
+                src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800"
+                alt="Truffle farming"
                 className="rounded-lg shadow-lg"
               />
             </div>
             <div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Our Mission</h3>
               <p className="text-gray-600 mb-6">
-                We aim to empower truffle growers across Australia by providing transparent, 
-                accessible benchmarking data that helps optimize production, improve profitability, 
+                We aim to empower truffle growers across Australia by providing transparent,
+                accessible benchmarking data that helps optimize production, improve profitability,
                 and foster industry-wide collaboration.
               </p>
               <div className="space-y-3">
@@ -181,9 +177,9 @@ export function Login() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 mt-12">
-            <button
-              onClick={() => navigateToDashboard('yield')}
-              className="bg-white border border-gray-200 p-8 rounded-xl hover:shadow-lg transition-all text-left group"
+            <Link
+              to="/dashboard/yield-benchmarking"
+              className="bg-white border border-gray-200 p-8 rounded-xl hover:shadow-lg transition-all text-left group block"
             >
               <div className="mb-6">
                 <BarChart3 className="w-8 h-8 text-gray-900" />
@@ -196,11 +192,11 @@ export function Login() {
                 <span className="text-sm font-medium">Learn more</span>
                 <ArrowRight className="w-4 h-4" />
               </div>
-            </button>
+            </Link>
 
-            <button
-              onClick={() => navigateToDashboard('cost')}
-              className="bg-white border border-gray-200 p-8 rounded-xl hover:shadow-lg transition-all text-left group"
+            <Link
+              to="/dashboard/cost-analysis"
+              className="bg-white border border-gray-200 p-8 rounded-xl hover:shadow-lg transition-all text-left group block"
             >
               <div className="mb-6">
                 <DollarSign className="w-8 h-8 text-gray-900" />
@@ -213,11 +209,11 @@ export function Login() {
                 <span className="text-sm font-medium">Learn more</span>
                 <ArrowRight className="w-4 h-4" />
               </div>
-            </button>
+            </Link>
 
-            <button
-              onClick={() => navigateToDashboard('practice')}
-              className="bg-white border border-gray-200 p-8 rounded-xl hover:shadow-lg transition-all text-left group"
+            <Link
+              to="/dashboard/farm-practice"
+              className="bg-white border border-gray-200 p-8 rounded-xl hover:shadow-lg transition-all text-left group block"
             >
               <div className="mb-6">
                 <Sprout className="w-8 h-8 text-gray-900" />
@@ -230,7 +226,7 @@ export function Login() {
                 <span className="text-sm font-medium">Learn more</span>
                 <ArrowRight className="w-4 h-4" />
               </div>
-            </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -289,14 +285,14 @@ export function Login() {
             Join hundreds of Australian truffle growers using data to improve their operations.
           </p>
           <div className="flex gap-4 justify-center">
-            <Button 
+            <Button
               onClick={handleGetStarted}
               className="bg-white text-[#10B981] hover:bg-gray-100 px-8 py-3 rounded-lg font-medium transition-colors"
             >
               Get Started Now
               <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
-            <Button 
+            <Button
               onClick={handleExplorePublicData}
               variant="outline"
               className="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-3 rounded-lg font-medium transition-colors"

@@ -21,6 +21,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/questionnaire',
+    // 问卷页面保留登录保护
     element: (
       <ProtectedRoute>
         <Questionnaire />
@@ -29,12 +30,8 @@ export const router = createBrowserRouter([
   },
   {
     path: '/dashboard',
-    element: (
-      <ProtectedRoute>
-        <Dashboard />
-      </ProtectedRoute>
-    ),
-    // 这里是关键：新增的嵌套子路由
+    // 这里移除了 ProtectedRoute，让任何人都可以直接查看数据大屏
+    element: <Dashboard />,
     children: [
       { index: true, element: <Navigate to="yield-benchmarking" replace /> },
       { path: 'yield-benchmarking', element: <YieldBenchmarkingPage /> },

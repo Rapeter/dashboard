@@ -23,10 +23,14 @@ export function Dashboard() {
     <div className="min-h-screen bg-[#F8FAFC] flex relative">
       {/* Sidebar Layout */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 relative">
-        <div className="p-6 border-b border-gray-200 flex items-center gap-2">
+        {/* 修改 1：将 Logo 区域用 Link 包裹，点击返回首页 */}
+        <Link
+          to="/"
+          className="p-6 border-b border-gray-200 flex items-center gap-2 hover:bg-gray-50 transition-colors cursor-pointer"
+        >
           <TreeDeciduous className="w-6 h-6 text-[#10B981]" />
           <span className="font-bold text-lg text-gray-800">Truffle Dashboard</span>
-        </div>
+        </Link>
 
         <nav className="p-4 space-y-2 flex-1">
           <Link
@@ -79,7 +83,10 @@ export function Dashboard() {
         {/* Top Header */}
         <header className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center z-10">
           <div className="flex items-center gap-4 text-sm font-medium text-gray-500">
-             <span>Home</span>
+             {/* 修改 2：将 Home 文本改为 Link，并添加悬停效果 */}
+             <Link to="/" className="hover:text-gray-900 transition-colors cursor-pointer">
+               Home
+             </Link>
              <span>/</span>
              <span className="text-[#10B981]">{getPageTitle()}</span>
           </div>

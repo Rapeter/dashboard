@@ -8,22 +8,40 @@ export default function LoginPage() {
   const [isResetMode, setIsResetMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
 
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitMessage('');
+    setIsSubmitting(true);
 
     if (isResetMode) {
       // 模拟发送重置密码邮件的逻辑
-      alert(`Password reset link sent to ${email}`);
+      setSubmitMessage(`Password reset link sent to ${email}`);
       setIsResetMode(false); // 回到登录界面
     } else {
-      // 模拟登录验证逻辑 (未来这里会接入 MySQL 后端验证)
-      console.log("Logging in with:", email, password);
-      // 登录成功后，跳转到问卷页面
-      router.push('/survey');
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error ?? 'Login failed.');
+        }
+        router.push('/survey');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Login failed.';
+        setSubmitMessage(message);
+      }
     }
+    setIsSubmitting(false);
   };
 
   return (
@@ -74,11 +92,15 @@ export default function LoginPage() {
 
             <button
               type="submit"
+              disabled={isSubmitting}
               className="w-full bg-[#091a40] text-white py-2.5 rounded hover:bg-[#071433] transition-colors font-medium text-lg mt-4"
             >
-              {isResetMode ? "Send Reset Link" : "Log In"}
+              {isSubmitting ? "Please wait..." : isResetMode ? "Send Reset Link" : "Log In"}
             </button>
           </form>
+          {submitMessage ? (
+            <p className="mt-4 text-sm text-center text-gray-700">{submitMessage}</p>
+          ) : null}
 
           {/* Toggle between Login and Reset */}
           <div className="mt-6 text-center">

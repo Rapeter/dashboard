@@ -1,7 +1,27 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS survey;
 CREATE SCHEMA IF NOT EXISTS analytics;
+
+CREATE TABLE IF NOT EXISTS auth.users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL UNIQUE,
+  password_hash text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  is_active boolean NOT NULL DEFAULT true
+);
+
+INSERT INTO auth.users (email, password_hash, is_active)
+VALUES (
+  'admin@dev.com',
+  crypt('DevProgress2026', gen_salt('bf', 10)),
+  true
+)
+ON CONFLICT (email)
+DO UPDATE SET
+  password_hash = EXCLUDED.password_hash,
+  is_active = true;
 
 CREATE TABLE IF NOT EXISTS survey.survey_providers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,7 +104,7 @@ ON survey.provider_mapping (
 
 CREATE TABLE IF NOT EXISTS survey.respondents (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  auth_user_id uuid,
+  auth_user_id uuid REFERENCES auth.users(id),
   created_at timestamptz NOT NULL DEFAULT now(),
   email text UNIQUE,
   state text,

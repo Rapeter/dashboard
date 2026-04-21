@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hazelnut Survey Dashboard Prototype
 
-## Getting Started
+This project now includes a data architecture aligned to the Hazelnut PDF requirements:
 
-First, run the development server:
+- Canonical survey schema under `survey.*`
+- Raw landing + staging tables (`raw_responses`, `raw_response_fields`)
+- Canonical answer table (`survey.answers`)
+- Analytics entry point as materialized view: `analytics.fact_answers`
+
+## Setup
+
+1. Create `.env.local` from `.env.example` and configure PostgreSQL:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Initialize database objects:
 
-## Learn More
+```bash
+pnpm db:init
+```
 
-To learn more about Next.js, take a look at the following resources:
+4. Start the app:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## API Endpoints
 
-## Deploy on Vercel
+- `POST /api/survey/submit`  
+  Accepts the survey page payload, persists `raw_*` records, normalizes into canonical tables, writes `survey.answers`, and refreshes `analytics.fact_answers`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `GET /api/analytics/fact-answers?limit=200`  
+  Reads analysis-ready rows from `analytics.fact_answers`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Key Files
+
+- `db/schema.sql` - full `survey` and `analytics` schema, including materialized view
+- `lib/survey/normalizer.ts` - raw-to-canonical normalization logic
+- `app/api/survey/submit/route.ts` - submission ingestion endpoint
+- `app/api/analytics/fact-answers/route.ts` - analytics read endpoint

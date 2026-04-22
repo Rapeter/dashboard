@@ -76,8 +76,11 @@ async function ensureQuestionMetadata(client: PoolClient, surveyId: string) {
     await client.query(
       `INSERT INTO survey.questions (survey_id, code, type, provider_question_id)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT (survey_id, code)
-       DO UPDATE SET type = EXCLUDED.type, provider_question_id = EXCLUDED.provider_question_id`,
+       ON CONFLICT (code)
+       DO UPDATE SET
+         survey_id = EXCLUDED.survey_id,
+         type = EXCLUDED.type,
+         provider_question_id = EXCLUDED.provider_question_id`,
       [surveyId, question.code, question.type, question.providerQid],
     );
 
@@ -98,11 +101,11 @@ async function ensureQuestionMetadata(client: PoolClient, surveyId: string) {
   }
 }
 
-async function getQuestionIdByCode(client: PoolClient, surveyId: string, code: string) {
+async function getQuestionIdByCode(client: PoolClient, code: string) {
   const result = await client.query<{ id: string }>(
     `SELECT id FROM survey.questions
-     WHERE survey_id = $1 AND code = $2`,
-    [surveyId, code],
+     WHERE code = $1`,
+    [code],
   );
   return result.rows[0]?.id;
 }
@@ -192,7 +195,7 @@ export async function normalizeSubmission(client: PoolClient, payload: IncomingS
   const responseId = responseResult.rows[0].id;
 
   for (const question of QUESTION_DEFINITIONS) {
-    const questionId = await getQuestionIdByCode(client, surveyId, question.code);
+    const questionId = await getQuestionIdByCode(client, question.code);
     if (!questionId) {
       continue;
     }

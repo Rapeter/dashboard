@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { PlainLanguageStatementContent } from '@/app/survey/components/plain-language-statement-content';
 import { ConsentFormContent } from '@/app/survey/components/consent-form-content';
 
@@ -21,6 +21,10 @@ type SurveyPage =
   | 'section5Intro'
   | 'section5Traceability'
   | 'section5FutureProducts'
+  | 'section6EconomicEfficiency'
+  | 'section6AssetValue'
+  | 'section7Energy'
+  | 'section7Map'
   | 'final';
 const SURVEY_PAGE_FLOW: SurveyPage[] = [
   'page1',
@@ -40,8 +44,81 @@ const SURVEY_PAGE_FLOW: SurveyPage[] = [
   'section5Intro',
   'section5Traceability',
   'section5FutureProducts',
+  'section6EconomicEfficiency',
+  'section6AssetValue',
+  'section7Energy',
+  'section7Map',
   'final',
 ];
+
+type ContactFormData = {
+  givenName: string;
+  surname: string;
+  contactNumber: string;
+  email: string;
+  farmName: string;
+  farmStreetAddress: string;
+  townCity: string;
+  postcode: string;
+  state: string;
+  region: string;
+};
+
+type FertiliserMatrixValue = {
+  solid: string;
+  ready: string;
+  concentrate: string;
+  applyTimes: string;
+};
+
+type ChemicalMatrixValue = {
+  solid: string;
+  ready: string;
+  concentrate: string;
+};
+
+type SurveyProgressPayload = {
+  formData: ContactFormData;
+  consent: string;
+  backgroundEmail: string;
+  backgroundPostcode: string;
+  studyYear: string;
+  completedPreviousYears: string;
+  industryWorkTypes: string[];
+  plantingTimes: string;
+  soilTypesIdentified: string;
+  estimatedRainfall: string;
+  solidFertiliserKg: string;
+  readyLiquidFertiliserLitres: string;
+  concentrateFertiliserLitres: string;
+  fertiliserMonitoring: string;
+  fertiliserMatrixValues: Record<string, FertiliserMatrixValue>;
+  soilTestsSince2021: string[];
+  soilTestsSince2024: string[];
+  sapOrLeafTestingSince2024: string;
+  structuredFarmPlanAnswers: string[];
+  bioIssuesTopThree: string[];
+  competingFungiManagement: string[];
+  solidChemicalsAmount: string;
+  readyLiquidChemicalsAmount: string;
+  concentratedChemicalsAmount: string;
+  chemicalMonitoring: string;
+  section3ChemicalMatrixValues: Record<string, ChemicalMatrixValue>;
+  usesPoultryForPestControl: string;
+  traceabilitySystem: string;
+  plannedProductsIn5Years: string[];
+  annualRevenueCategory: string;
+  annualRevenueEstimate: string;
+  annualOperationalCostEstimate: string;
+  estimatedFixedAssetValue: string;
+  estimatedBusinessValue: string;
+  petrolDieselUsage: string;
+  naturalGasUsage: string;
+  electricityUsage: string;
+  solarElectricityProduced: string;
+  irrigationWaterUsage: string;
+  isOnAustralianTruffleMap: string;
+};
 
 const FERTILISER_MATRIX_COLUMNS = [
   "Total Quantity per Year in Solid Form (in kilogram)",
@@ -1750,22 +1827,54 @@ const REGIONS_BY_STATE: Record<string, string[]> = {
   ],
 };
 
+const EMPTY_FORM_DATA: ContactFormData = {
+  givenName: '',
+  surname: '',
+  contactNumber: '',
+  email: '',
+  farmName: '',
+  farmStreetAddress: '',
+  townCity: '',
+  postcode: '',
+  state: '',
+  region: '',
+};
+
+function createEmptyFertiliserMatrixValues(): Record<string, FertiliserMatrixValue> {
+  return Object.fromEntries(
+    FERTILISER_MATRIX_ROWS.map((row) => [
+      row,
+      { solid: '', ready: '', concentrate: '', applyTimes: '' },
+    ]),
+  );
+}
+
+function createEmptySection3ChemicalMatrixValues(): Record<string, ChemicalMatrixValue> {
+  return Object.fromEntries(
+    SECTION3_CHEMICAL_MATRIX_ROWS.map((row) => [row, { solid: '', ready: '', concentrate: '' }]),
+  );
+}
+
+function asString(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
+function asStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function isSurveyPage(value: unknown): value is SurveyPage {
+  return typeof value === 'string' && SURVEY_PAGE_FLOW.includes(value as SurveyPage);
+}
+
 export default function SurveyForm() {
   const [currentPage, setCurrentPage] = useState<SurveyPage>('page1');
-  const [formData, setFormData] = useState({
-    givenName: '',
-    surname: '',
-    contactNumber: '',
-    email: '',
-    farmName: '',
-    farmStreetAddress: '',
-    townCity: '',
-    postcode: '',
-    state: '',
-    region: ''
-  });
+  const [formData, setFormData] = useState<ContactFormData>(EMPTY_FORM_DATA);
   const [submitMessage, setSubmitMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingProgress, setIsLoadingProgress] = useState(true);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [hasSubmittedRecord, setHasSubmittedRecord] = useState(false);
   const [consent, setConsent] = useState('');
   const [isPage4SignatureValid, setIsPage4SignatureValid] = useState(false);
   const [backgroundEmail, setBackgroundEmail] = useState('');
@@ -1781,15 +1890,8 @@ export default function SurveyForm() {
   const [concentrateFertiliserLitres, setConcentrateFertiliserLitres] = useState('');
   const [fertiliserMonitoring, setFertiliserMonitoring] = useState('');
   const [fertiliserMatrixValues, setFertiliserMatrixValues] = useState<
-    Record<string, { solid: string; ready: string; concentrate: string; applyTimes: string }>
-  >(() =>
-    Object.fromEntries(
-      FERTILISER_MATRIX_ROWS.map((row) => [
-        row,
-        { solid: '', ready: '', concentrate: '', applyTimes: '' },
-      ]),
-    ),
-  );
+    Record<string, FertiliserMatrixValue>
+  >(createEmptyFertiliserMatrixValues);
   const [soilTestsSince2021, setSoilTestsSince2021] = useState<string[]>([]);
   const [soilTestsSince2024, setSoilTestsSince2024] = useState<string[]>([]);
   const [sapOrLeafTestingSince2024, setSapOrLeafTestingSince2024] = useState('');
@@ -1801,15 +1903,23 @@ export default function SurveyForm() {
   const [concentratedChemicalsAmount, setConcentratedChemicalsAmount] = useState('');
   const [chemicalMonitoring, setChemicalMonitoring] = useState('');
   const [section3ChemicalMatrixValues, setSection3ChemicalMatrixValues] = useState<
-    Record<string, { solid: string; ready: string; concentrate: string }>
-  >(() =>
-    Object.fromEntries(
-      SECTION3_CHEMICAL_MATRIX_ROWS.map((row) => [row, { solid: '', ready: '', concentrate: '' }]),
-    ),
-  );
+    Record<string, ChemicalMatrixValue>
+  >(createEmptySection3ChemicalMatrixValues);
   const [usesPoultryForPestControl, setUsesPoultryForPestControl] = useState('');
   const [traceabilitySystem, setTraceabilitySystem] = useState('');
   const [plannedProductsIn5Years, setPlannedProductsIn5Years] = useState<string[]>([]);
+  const [annualRevenueCategory, setAnnualRevenueCategory] = useState('');
+  const [annualRevenueEstimate, setAnnualRevenueEstimate] = useState('');
+  const [annualOperationalCostEstimate, setAnnualOperationalCostEstimate] = useState('');
+  const [estimatedFixedAssetValue, setEstimatedFixedAssetValue] = useState('');
+  const [estimatedBusinessValue, setEstimatedBusinessValue] = useState('');
+  const [petrolDieselUsage, setPetrolDieselUsage] = useState('');
+  const [naturalGasUsage, setNaturalGasUsage] = useState('');
+  const [electricityUsage, setElectricityUsage] = useState('');
+  const [solarElectricityProduced, setSolarElectricityProduced] = useState('');
+  const [irrigationWaterUsage, setIrrigationWaterUsage] = useState('');
+  const [isOnAustralianTruffleMap, setIsOnAustralianTruffleMap] = useState('');
+  const [isFinalPageFromSubmit, setIsFinalPageFromSubmit] = useState(false);
   const availableRegions = REGIONS_BY_STATE[formData.state] ?? [];
   const totalPages = SURVEY_PAGE_FLOW.length;
   const currentPageIndex = SURVEY_PAGE_FLOW.indexOf(currentPage);
@@ -1820,6 +1930,224 @@ export default function SurveyForm() {
     studyYear !== '' &&
     completedPreviousYears !== '' &&
     industryWorkTypes.length > 0;
+  const progressPayload: SurveyProgressPayload = useMemo(
+    () => ({
+      formData,
+      consent,
+      backgroundEmail,
+      backgroundPostcode,
+      studyYear,
+      completedPreviousYears,
+      industryWorkTypes,
+      plantingTimes,
+      soilTypesIdentified,
+      estimatedRainfall,
+      solidFertiliserKg,
+      readyLiquidFertiliserLitres,
+      concentrateFertiliserLitres,
+      fertiliserMonitoring,
+      fertiliserMatrixValues,
+      soilTestsSince2021,
+      soilTestsSince2024,
+      sapOrLeafTestingSince2024,
+      structuredFarmPlanAnswers,
+      bioIssuesTopThree,
+      competingFungiManagement,
+      solidChemicalsAmount,
+      readyLiquidChemicalsAmount,
+      concentratedChemicalsAmount,
+      chemicalMonitoring,
+      section3ChemicalMatrixValues,
+      usesPoultryForPestControl,
+      traceabilitySystem,
+      plannedProductsIn5Years,
+      annualRevenueCategory,
+      annualRevenueEstimate,
+      annualOperationalCostEstimate,
+      estimatedFixedAssetValue,
+      estimatedBusinessValue,
+      petrolDieselUsage,
+      naturalGasUsage,
+      electricityUsage,
+      solarElectricityProduced,
+      irrigationWaterUsage,
+      isOnAustralianTruffleMap,
+    }),
+    [
+      annualOperationalCostEstimate,
+      annualRevenueCategory,
+      annualRevenueEstimate,
+      backgroundEmail,
+      backgroundPostcode,
+      bioIssuesTopThree,
+      chemicalMonitoring,
+      completedPreviousYears,
+      competingFungiManagement,
+      concentrateFertiliserLitres,
+      concentratedChemicalsAmount,
+      consent,
+      electricityUsage,
+      estimatedBusinessValue,
+      estimatedFixedAssetValue,
+      estimatedRainfall,
+      fertiliserMatrixValues,
+      fertiliserMonitoring,
+      formData,
+      industryWorkTypes,
+      irrigationWaterUsage,
+      isOnAustralianTruffleMap,
+      naturalGasUsage,
+      petrolDieselUsage,
+      plannedProductsIn5Years,
+      plantingTimes,
+      readyLiquidChemicalsAmount,
+      readyLiquidFertiliserLitres,
+      sapOrLeafTestingSince2024,
+      section3ChemicalMatrixValues,
+      soilTestsSince2021,
+      soilTestsSince2024,
+      soilTypesIdentified,
+      solarElectricityProduced,
+      solidChemicalsAmount,
+      solidFertiliserKg,
+      structuredFarmPlanAnswers,
+      studyYear,
+      traceabilitySystem,
+      usesPoultryForPestControl,
+    ],
+  );
+
+  useEffect(() => {
+    const loadProgress = async () => {
+      try {
+        const response = await fetch('/api/survey/progress', { method: 'GET', cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error('Failed to load survey progress.');
+        }
+
+        const result = await response.json();
+        const progress = result?.progress;
+        if (!progress) {
+          return;
+        }
+
+        const payload = (progress.payload ?? {}) as Partial<SurveyProgressPayload>;
+        setCurrentPage(isSurveyPage(progress.current_page) ? progress.current_page : 'page1');
+        setFormData({
+          ...EMPTY_FORM_DATA,
+          ...(payload.formData ?? {}),
+        });
+        setConsent(asString(payload.consent));
+        setBackgroundEmail(asString(payload.backgroundEmail));
+        setBackgroundPostcode(asString(payload.backgroundPostcode));
+        setStudyYear(asString(payload.studyYear));
+        setCompletedPreviousYears(asString(payload.completedPreviousYears));
+        setIndustryWorkTypes(asStringArray(payload.industryWorkTypes));
+        setPlantingTimes(asString(payload.plantingTimes));
+        setSoilTypesIdentified(asString(payload.soilTypesIdentified));
+        setEstimatedRainfall(asString(payload.estimatedRainfall));
+        setSolidFertiliserKg(asString(payload.solidFertiliserKg));
+        setReadyLiquidFertiliserLitres(asString(payload.readyLiquidFertiliserLitres));
+        setConcentrateFertiliserLitres(asString(payload.concentrateFertiliserLitres));
+        setFertiliserMonitoring(asString(payload.fertiliserMonitoring));
+        setSoilTestsSince2021(asStringArray(payload.soilTestsSince2021));
+        setSoilTestsSince2024(asStringArray(payload.soilTestsSince2024));
+        setSapOrLeafTestingSince2024(asString(payload.sapOrLeafTestingSince2024));
+        setStructuredFarmPlanAnswers(asStringArray(payload.structuredFarmPlanAnswers));
+        setBioIssuesTopThree(asStringArray(payload.bioIssuesTopThree));
+        setCompetingFungiManagement(asStringArray(payload.competingFungiManagement));
+        setSolidChemicalsAmount(asString(payload.solidChemicalsAmount));
+        setReadyLiquidChemicalsAmount(asString(payload.readyLiquidChemicalsAmount));
+        setConcentratedChemicalsAmount(asString(payload.concentratedChemicalsAmount));
+        setChemicalMonitoring(asString(payload.chemicalMonitoring));
+        setUsesPoultryForPestControl(asString(payload.usesPoultryForPestControl));
+        setTraceabilitySystem(asString(payload.traceabilitySystem));
+        setPlannedProductsIn5Years(asStringArray(payload.plannedProductsIn5Years));
+        setAnnualRevenueCategory(asString(payload.annualRevenueCategory));
+        setAnnualRevenueEstimate(asString(payload.annualRevenueEstimate));
+        setAnnualOperationalCostEstimate(asString(payload.annualOperationalCostEstimate));
+        setEstimatedFixedAssetValue(asString(payload.estimatedFixedAssetValue));
+        setEstimatedBusinessValue(asString(payload.estimatedBusinessValue));
+        setPetrolDieselUsage(asString(payload.petrolDieselUsage));
+        setNaturalGasUsage(asString(payload.naturalGasUsage));
+        setElectricityUsage(asString(payload.electricityUsage));
+        setSolarElectricityProduced(asString(payload.solarElectricityProduced));
+        setIrrigationWaterUsage(asString(payload.irrigationWaterUsage));
+        setIsOnAustralianTruffleMap(asString(payload.isOnAustralianTruffleMap));
+
+        const nextFertiliserMatrix = createEmptyFertiliserMatrixValues();
+        const savedFertiliserMatrix = payload.fertiliserMatrixValues;
+        if (savedFertiliserMatrix && typeof savedFertiliserMatrix === 'object') {
+          for (const row of FERTILISER_MATRIX_ROWS) {
+            const savedRow = (savedFertiliserMatrix as Record<string, Partial<FertiliserMatrixValue>>)[row];
+            if (!savedRow) continue;
+            nextFertiliserMatrix[row] = {
+              solid: asString(savedRow.solid),
+              ready: asString(savedRow.ready),
+              concentrate: asString(savedRow.concentrate),
+              applyTimes: asString(savedRow.applyTimes),
+            };
+          }
+        }
+        setFertiliserMatrixValues(nextFertiliserMatrix);
+
+        const nextChemicalMatrix = createEmptySection3ChemicalMatrixValues();
+        const savedChemicalMatrix = payload.section3ChemicalMatrixValues;
+        if (savedChemicalMatrix && typeof savedChemicalMatrix === 'object') {
+          for (const row of SECTION3_CHEMICAL_MATRIX_ROWS) {
+            const savedRow = (savedChemicalMatrix as Record<string, Partial<ChemicalMatrixValue>>)[row];
+            if (!savedRow) continue;
+            nextChemicalMatrix[row] = {
+              solid: asString(savedRow.solid),
+              ready: asString(savedRow.ready),
+              concentrate: asString(savedRow.concentrate),
+            };
+          }
+        }
+        setSection3ChemicalMatrixValues(nextChemicalMatrix);
+
+        setHasSubmittedRecord(progress.status === 'submitted');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load saved survey progress.';
+        setSubmitMessage(message);
+      } finally {
+        setIsLoadingProgress(false);
+      }
+    };
+
+    void loadProgress();
+  }, []);
+
+  useEffect(() => {
+    if (isLoadingProgress || isSubmitting) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      setIsAutoSaving(true);
+      try {
+        await fetch('/api/survey/progress', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            currentPage,
+            payload: progressPayload,
+            status: hasSubmittedRecord ? 'submitted' : 'draft',
+          }),
+        });
+      } catch {
+        // Keep silent during background autosave to avoid disrupting survey flow.
+      } finally {
+        setIsAutoSaving(false);
+      }
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [currentPage, hasSubmittedRecord, isLoadingProgress, isSubmitting, progressPayload]);
 
   const toggleIndustryWorkType = (workType: string) => {
     setIndustryWorkTypes((prev) =>
@@ -1864,6 +2192,7 @@ export default function SurveyForm() {
 
   const handleConsentNextPage = () => {
     if (consent === 'no') {
+      setIsFinalPageFromSubmit(false);
       setCurrentPage('final');
       return;
     }
@@ -1913,25 +2242,35 @@ export default function SurveyForm() {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handlePage1Next = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitMessage('');
+    setCurrentPage('pls');
+  };
+
+  const handleFinalSubmit = async () => {
     setIsSubmitting(true);
     setSubmitMessage('');
 
     try {
-      const response = await fetch('/api/survey/submit', {
+      const response = await fetch('/api/survey/progress/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          currentPage: 'final',
+          payload: progressPayload,
+        }),
       });
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.error ?? 'Failed to submit survey.');
       }
+      setHasSubmittedRecord(true);
+      setIsFinalPageFromSubmit(true);
       setSubmitMessage(`Submitted successfully. Response ID: ${result.responseId}`);
-      setCurrentPage('pls');
+      setCurrentPage('final');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       setSubmitMessage(`Submit failed: ${message}`);
@@ -1962,12 +2301,19 @@ export default function SurveyForm() {
       <div className="px-4 py-1 text-sm text-gray-600">
         {progressPercent}% Survey Completion
       </div>
+      <div className="px-4 pb-2 text-xs text-gray-500">
+        {isLoadingProgress
+          ? 'Loading saved progress...'
+          : isAutoSaving
+            ? 'Saving...'
+            : 'All changes saved'}
+      </div>
 
       <main
         className={`${currentPage === 'page1' ? "max-w-3xl" : "max-w-4xl"} mx-auto py-12 px-6 sm:px-12`}
       >
         {currentPage === 'page1' ? (
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handlePage1Next} className="space-y-6">
 
           <h2 className="text-xl text-gray-800 mb-6">
             <span className="text-black">*</span> Please provide the following information.
@@ -3568,7 +3914,7 @@ export default function SurveyForm() {
               </button>
               <button
                 type="button"
-                onClick={() => setCurrentPage('final')}
+                onClick={() => setCurrentPage('section6EconomicEfficiency')}
                 className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
               >
                 Next page <span className="ml-2 font-bold">&gt;</span>
@@ -3577,9 +3923,384 @@ export default function SurveyForm() {
           </section>
         ) : null}
 
+        {currentPage === 'section6EconomicEfficiency' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 6 - Economic efficiency</h2>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Which of the following categories best describes your annual revenue from the sale
+                of truffles and truffle products in the last calendar year (AUD)?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="annualRevenueCategory"
+                  value="$0 (no sales yet)"
+                  checked={annualRevenueCategory === '$0 (no sales yet)'}
+                  onChange={(e) => setAnnualRevenueCategory(e.target.value)}
+                />
+                $0 (no sales yet)
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="annualRevenueCategory"
+                  value="Less than $10,000"
+                  checked={annualRevenueCategory === 'Less than $10,000'}
+                  onChange={(e) => setAnnualRevenueCategory(e.target.value)}
+                />
+                Less than $10,000
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="annualRevenueCategory"
+                  value="$10,000 - $49,999"
+                  checked={annualRevenueCategory === '$10,000 - $49,999'}
+                  onChange={(e) => setAnnualRevenueCategory(e.target.value)}
+                />
+                $10,000 - $49,999
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="annualRevenueCategory"
+                  value="$50,000 - $99,999"
+                  checked={annualRevenueCategory === '$50,000 - $99,999'}
+                  onChange={(e) => setAnnualRevenueCategory(e.target.value)}
+                />
+                $50,000 - $99,999
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="annualRevenueCategory"
+                  value="$100,000 - $249,999"
+                  checked={annualRevenueCategory === '$100,000 - $249,999'}
+                  onChange={(e) => setAnnualRevenueCategory(e.target.value)}
+                />
+                $100,000 - $249,999
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="annualRevenueCategory"
+                  value="$250,000 - $499,999"
+                  checked={annualRevenueCategory === '$250,000 - $499,999'}
+                  onChange={(e) => setAnnualRevenueCategory(e.target.value)}
+                />
+                $250,000 - $499,999
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="annualRevenueCategory"
+                  value="$500,000 - $999,999"
+                  checked={annualRevenueCategory === '$500,000 - $999,999'}
+                  onChange={(e) => setAnnualRevenueCategory(e.target.value)}
+                />
+                $500,000 - $999,999
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="annualRevenueCategory"
+                  value="$1,000,000 or more"
+                  checked={annualRevenueCategory === '$1,000,000 or more'}
+                  onChange={(e) => setAnnualRevenueCategory(e.target.value)}
+                />
+                $1,000,000 or more
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="annualRevenueCategory"
+                  value="Prefer not to say"
+                  checked={annualRevenueCategory === 'Prefer not to say'}
+                  onChange={(e) => setAnnualRevenueCategory(e.target.value)}
+                />
+                Prefer not to say
+              </label>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                If you are comfortable, please provide a more precise estimate of your annual
+                revenue from the sale of truffles and truffle products in the last calendar year
+                (AUD). You may leave this blank if you prefer not to say.
+              </label>
+              <input
+                type="text"
+                value={annualRevenueEstimate}
+                onChange={(e) => setAnnualRevenueEstimate(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                If you are comfortable, please provide an estimate of your annual operational cost
+                in the last calendar year, including farm management, labour, utilities, logistics,
+                equipment hire/maintenance, bank loan interest, marketing, accounting, government
+                charge, dog training/hire? (Please estimate if an accurate number is not available)
+              </label>
+              <input
+                type="text"
+                value={annualOperationalCostEstimate}
+                onChange={(e) => setAnnualOperationalCostEstimate(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5FutureProducts')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section6AssetValue')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section6AssetValue' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 6 - Economic efficiency</h2>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What is the current estimated total value of the fixed asset, including land, tree,
+                building, equipment and machinery, vehicles? (Assuming you are selling the property,
+                please estimate) Please leave this blank if you prefer not to say.
+              </label>
+              <input
+                type="text"
+                value={estimatedFixedAssetValue}
+                onChange={(e) => setEstimatedFixedAssetValue(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What is the current estimated total value of the business including asset (Assuming
+                you are selling the business and property, please estimate) Please leave this blank
+                if you prefer not to say.
+              </label>
+              <input
+                type="text"
+                value={estimatedBusinessValue}
+                onChange={(e) => setEstimatedBusinessValue(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section6EconomicEfficiency')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section7Energy')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section7Energy' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">
+              Section 7 - Energy consumption and sustainability
+            </h2>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                How many litres of petrol and diesel were used for farm-related business in the
+                last calendar year? (Exclude personal usage) (Please estimate if an accurate number
+                is not available)
+              </label>
+              <input
+                type="text"
+                value={petrolDieselUsage}
+                onChange={(e) => setPetrolDieselUsage(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                How many cubic metres of natural gas were used for business purposes in the last
+                calendar year? (Exclude personal usage) (Please estimate if an accurate number is
+                not available)
+              </label>
+              <input
+                type="text"
+                value={naturalGasUsage}
+                onChange={(e) => setNaturalGasUsage(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                How much electricity in kilowatt-hours was used for business purposes in the last
+                calendar year? (Exclude personal usage) (Please estimate if an accurate number is
+                not available)
+              </label>
+              <input
+                type="text"
+                value={electricityUsage}
+                onChange={(e) => setElectricityUsage(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                If you have solar panels, what is the total electricity in kilowatt-hours produced
+                in the last calendar year? (If you don&apos;t have solar panels, please enter 0)
+                (Please estimate if an accurate number is not available)
+              </label>
+              <input
+                type="text"
+                value={solarElectricityProduced}
+                onChange={(e) => setSolarElectricityProduced(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                How many megalitres of water were used for irrigation in the last calendar year? (1
+                megalitre = 1000 cubic litres) (Please estimate if an accurate number is not
+                available)
+              </label>
+              <input
+                type="text"
+                value={irrigationWaterUsage}
+                onChange={(e) => setIrrigationWaterUsage(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section6AssetValue')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section7Map')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section7Map' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">
+              Section 7 - Energy consumption and sustainability
+            </h2>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Is your farm currently on the Australian Truffle Map (Australian Tree Crop Map)?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="isOnAustralianTruffleMap"
+                  value="yes"
+                  checked={isOnAustralianTruffleMap === 'yes'}
+                  onChange={(e) => setIsOnAustralianTruffleMap(e.target.value)}
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="isOnAustralianTruffleMap"
+                  value="no"
+                  checked={isOnAustralianTruffleMap === 'no'}
+                  onChange={(e) => setIsOnAustralianTruffleMap(e.target.value)}
+                />
+                No
+              </label>
+              <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                If your farm is not yet listed, please register your location in the{' '}
+                <a
+                  href="https://experience.arcgis.com/experience/413f33d9b88e4f94b1c4187ea1125c4d/?org=UNE-2351"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium underline decoration-blue-500 underline-offset-2 hover:text-blue-700"
+                >
+                  Industry Engagement Web App (IEWA)
+                </a>
+                .
+              </div>
+            </div>
+
+            <p className="text-base text-gray-800">
+              We thank you for your time spent taking this survey. You will be able to download a
+              copy of your responses after submission.
+            </p>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section7Energy')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={handleFinalSubmit}
+                disabled={isSubmitting}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit'}
+              </button>
+            </div>
+          </section>
+        ) : null}
+
         {currentPage === 'final' ? (
           <section className="border border-gray-200 rounded-md p-6 bg-[#f8f9fa] text-sm text-gray-700 space-y-4">
             <h2 className="text-xl font-semibold text-[#091a40]">Thank You</h2>
+            {isFinalPageFromSubmit ? <p>Now the survey has been submited!</p> : null}
+            {isFinalPageFromSubmit ? (
+              <a
+                href="/api/survey/export-docx"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center text-[#091a40] underline underline-offset-2 hover:text-[#0b2a66]"
+              >
+                Download all questions and answers (.docx)
+              </a>
+            ) : null}
             <p>
               Thank you for take time to participate in this survey, you can close the window now.
             </p>

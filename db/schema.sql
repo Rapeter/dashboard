@@ -41,15 +41,70 @@ CREATE TABLE IF NOT EXISTS survey.surveys (
   UNIQUE (provider_id, provider_survey_id, version)
 );
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'survey'
+      AND t.typname = 'question_type'
+  ) THEN
+    CREATE TYPE survey.question_type AS ENUM (
+      'text',
+      'number',
+      'boolean',
+      'single_choice',
+      'multi_choice',
+      'matrix'
+    );
+  END IF;
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS survey.questions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   survey_id uuid NOT NULL REFERENCES survey.surveys(id),
   code text NOT NULL,
-  type text NOT NULL,
+  type survey.question_type NOT NULL,
   is_first_year_only boolean NOT NULL DEFAULT false,
   provider_question_id text,
-  UNIQUE (survey_id, code)
+  UNIQUE (code)
 );
+
+ALTER TABLE survey.questions
+  DROP CONSTRAINT IF EXISTS questions_survey_id_code_key;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'survey.questions'::regclass
+      AND conname = 'questions_code_key'
+  ) THEN
+    ALTER TABLE survey.questions
+      ADD CONSTRAINT questions_code_key UNIQUE (code);
+  END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'survey'
+      AND table_name = 'questions'
+      AND column_name = 'type'
+      AND udt_name <> 'question_type'
+  ) THEN
+    ALTER TABLE survey.questions
+      ALTER COLUMN type TYPE survey.question_type
+      USING type::survey.question_type;
+  END IF;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS survey.question_rows (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -92,6 +147,21 @@ CREATE TABLE IF NOT EXISTS survey.provider_mapping (
   option_code text,
   option_label text
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'survey.provider_mapping'::regclass
+      AND conname = 'provider_mapping_question_code_fkey'
+  ) THEN
+    ALTER TABLE survey.provider_mapping
+      ADD CONSTRAINT provider_mapping_question_code_fkey
+      FOREIGN KEY (question_code) REFERENCES survey.questions(code);
+  END IF;
+END;
+$$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_mapping_signature
 ON survey.provider_mapping (
@@ -166,6 +236,33 @@ CREATE TABLE IF NOT EXISTS survey.raw_response_fields (
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (provider_response_id, field_key)
 );
+
+CREATE TABLE IF NOT EXISTS survey.user_survey_progress (
+  auth_user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  current_page text NOT NULL DEFAULT 'page1',
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'submitted')),
+  response_id uuid REFERENCES survey.survey_responses(id),
+  last_autosaved_at timestamptz,
+  submitted_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE survey.user_survey_progress
+  ADD COLUMN IF NOT EXISTS last_autosaved_at timestamptz;
+
+DROP VIEW IF EXISTS survey.user_submission_status;
+CREATE VIEW survey.user_submission_status AS
+SELECT
+  auth_user_id,
+  last_autosaved_at,
+  submitted_at AS last_submitted_at,
+  (
+    submitted_at IS NOT NULL
+    AND submitted_at >= now() - interval '1 year'
+  ) AS submitted_within_one_year
+FROM survey.user_survey_progress;
 
 CREATE OR REPLACE FUNCTION analytics.refresh_fact_answers()
 RETURNS void

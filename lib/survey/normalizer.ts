@@ -2,7 +2,7 @@ import type { PoolClient } from "pg";
 
 const PROVIDER_CODE = "web_form";
 const PROVIDER_NAME = "Web Form";
-const SURVEY_CODE = "hazelnut-baseline";
+const SURVEY_CODE = "truffle-baseline";
 const SURVEY_VERSION = 1;
 
 type IncomingSurvey = {
@@ -64,7 +64,7 @@ async function getOrCreateSurveyId(client: PoolClient, providerId: string) {
       providerId,
       SURVEY_CODE,
       SURVEY_VERSION,
-      "Hazelnut Baseline Survey",
+      "Truffle Baseline Survey",
       "Canonical schema-backed survey for dashboard ingestion.",
     ],
   );

@@ -19,7 +19,7 @@ export function PlainLanguageStatementContent() {
         <p className="text-sm mb-1">School of Agriculture, Food and Ecosystems Sciences</p>
         <p className="text-sm mb-1">Faculty of Science</p>
         <p className="text-sm mt-4">
-          Project: Understanding the current status of Australian hazelnut production and
+          Project: Understanding the current status of Australian truffle production and
           development of a real-time management platform of industry data.
         </p>
         <p className="text-sm mt-3">
@@ -62,25 +62,25 @@ export function PlainLanguageStatementContent() {
           <h2 className="text-lg font-semibold text-[#091a40]">What is this research about?</h2>
           <p>
             <strong>Background:</strong> This project will create a benchmarking framework for the
-            Australian hazelnut industry, analyzing orchard performance across profitability,
+            Australian truffle industry, analyzing orchard performance across profitability,
             sustainability, farming practices, and processing/by-product development. Through a
             comprehensive Qualtrics-based survey, the framework will collect industry-wide data to
             identify individual orchard performance metrics and guide sustainable development. The
             results will support decision-making in market access, traceability, biosecurity, yield
             forecasting, carbon storage, and quality control, while setting new standards for
             agricultural industries. This project is funded by AgriFutures Australia through the
-            Australian Hazelnut Program of Research.
+            Australian Truffle Program of Research.
           </p>
           <p className="mt-2">
             <strong>Aims:</strong> This study aims to understand the current status of Australian
-            hazelnut production and develop a real-time management platform for industry data.
+            truffle production and develop a real-time management platform for industry data.
           </p>
           <p className="mt-2">
             <strong>Methods:</strong> An online system will be built on the Qualtrics platform (or
             equivalent) to collect benchmarking data electronically. Farm owners, factory
-            personnel, and other stakeholders in the Australian hazelnut industry will be invited
-            via advertisements on the Australian Hazelnut Industry Association website, direct
-            emails to all registered hazelnut orchard owners/farmers, and hybrid
+            personnel, and other stakeholders in the Australian truffle industry will be invited
+            via advertisements on the Australian Truffle Industry Association website, direct
+            emails to all registered truffle orchard owners/farmers, and hybrid
             (online/in-person) briefing sessions. After providing consent, participants will
             complete the online benchmarking survey hosted on the secure Qualtrics platform (or
             equivalent). Data will be stored, managed and analysed automatically. Statistical
@@ -94,7 +94,7 @@ export function PlainLanguageStatementContent() {
             Am I eligible to participate in this research?
           </h2>
           <p>
-            You are eligible if you are engaged in the Australian hazelnut industry, such as a
+            You are eligible if you are engaged in the Australian truffle industry, such as a
             grower, processor, or policymaker.
           </p>
         </div>
@@ -139,7 +139,7 @@ export function PlainLanguageStatementContent() {
           <p className="mt-2">
             Estimated time: The questionnaire has two sections. General Part 1 takes about 40
             minutes. The second section contains four sub-questionnaires (A. Profitability
-            analysis; B. Social awareness and sustainability; C. Farm practice; D. Hazelnut
+            analysis; B. Social awareness and sustainability; C. Farm practice; D. Truffle
             processing and by-product development). After completing Part 1, participants may
             choose whether to continue and which specific sub-questionnaires to complete. Each
             sub-questionnaire takes about 20 minutes.
@@ -150,8 +150,8 @@ export function PlainLanguageStatementContent() {
           <h2 className="text-lg font-semibold text-[#091a40]">What are the possible benefits?</h2>
           <p>
             Participating in this research can provide valuable insights into the Australian
-            hazelnut industry. By contributing data, you gain access to benchmarking information
-            about profitability, social awareness and sustainability, farm practice, and hazelnut
+            truffle industry. By contributing data, you gain access to benchmarking information
+            about profitability, social awareness and sustainability, farm practice, and truffle
             processing/by-product development. This can support better farm management, resource
             allocation, and business planning. The framework aims to improve industry performance by
             setting new standards for efficiency, quality, and sustainability. The online platform
@@ -218,7 +218,7 @@ export function PlainLanguageStatementContent() {
               <strong>Data use and protection:</strong> Data will be used to build farm-specific
               benchmarking dashboards and aggregated industry analyses. A unique farm ID will be
               assigned. Identifiable data will not be shared with other farms. Only regional
-              averages are provided to Hazelnut Growers of Australia, and published results are
+              averages are provided to Truffle Growers of Australia, and published results are
               anonymized and industry-wide.
             </li>
             <li>

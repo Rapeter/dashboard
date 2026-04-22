@@ -1,50 +1,86 @@
 "use client"
 import React, { useEffect, useMemo, useState } from 'react';
 import { PlainLanguageStatementContent } from '@/app/survey/components/plain-language-statement-content';
-import { ConsentFormContent } from '@/app/survey/components/consent-form-content';
+import { ConsentFormContent, type ConsentSignatureData } from '@/app/survey/components/consent-form-content';
 
 type SurveyPage =
+  | 'home'
   | 'page1'
   | 'pls'
   | 'consent'
   | 'consentForm'
   | 'studyYear'
   | 'toc'
+  | 'section1FarmSize'
   | 'section1General'
+  | 'section1TreesAndSpecies'
+  | 'section1Yield'
+  | 'section1SoilTypes'
   | 'section1Soil'
   | 'section2Production'
+  | 'section2FirstProduction'
   | 'section2Rainfall'
+  | 'section2Irrigation'
+  | 'section2Monitoring'
   | 'section2Fertiliser'
   | 'section2FertiliserFollowup'
+  | 'section2FieldPracticesA'
+  | 'section2FieldPracticesB'
   | 'section3Biosecurity'
+  | 'section3PestMonitoring'
   | 'section3ChemicalFollowup'
+  | 'section4HarvestA'
+  | 'section4HarvestB'
+  | 'section4HarvestC'
   | 'section5Intro'
   | 'section5Traceability'
+  | 'section5Transport'
+  | 'section5Revenue'
+  | 'section5ProductsIncome'
   | 'section5FutureProducts'
   | 'section6EconomicEfficiency'
+  | 'section6EstablishmentCosts'
   | 'section6AssetValue'
   | 'section7Energy'
   | 'section7Map'
   | 'final';
 const SURVEY_PAGE_FLOW: SurveyPage[] = [
+  'home',
   'page1',
   'pls',
   'consent',
   'consentForm',
   'studyYear',
   'toc',
+  'section1FarmSize',
   'section1General',
+  'section1TreesAndSpecies',
+  'section1Yield',
+  'section1SoilTypes',
   'section1Soil',
   'section2Production',
+  'section2FirstProduction',
   'section2Rainfall',
+  'section2Irrigation',
+  'section2Monitoring',
   'section2Fertiliser',
   'section2FertiliserFollowup',
+  'section2FieldPracticesA',
+  'section2FieldPracticesB',
+  'section3PestMonitoring',
   'section3Biosecurity',
   'section3ChemicalFollowup',
+  'section4HarvestA',
+  'section4HarvestB',
+  'section4HarvestC',
   'section5Intro',
   'section5Traceability',
+  'section5Transport',
+  'section5Revenue',
+  'section5ProductsIncome',
   'section5FutureProducts',
   'section6EconomicEfficiency',
+  'section6EstablishmentCosts',
   'section6AssetValue',
   'section7Energy',
   'section7Map',
@@ -79,6 +115,7 @@ type ChemicalMatrixValue = {
 
 type SurveyProgressPayload = {
   formData: ContactFormData;
+  consentSignature: ConsentSignatureData;
   consent: string;
   backgroundEmail: string;
   backgroundPostcode: string;
@@ -118,6 +155,7 @@ type SurveyProgressPayload = {
   solarElectricityProduced: string;
   irrigationWaterUsage: string;
   isOnAustralianTruffleMap: string;
+  csvAnswers: Record<string, string | string[]>;
 };
 
 const FERTILISER_MATRIX_COLUMNS = [
@@ -1840,6 +1878,58 @@ const EMPTY_FORM_DATA: ContactFormData = {
   region: '',
 };
 
+const EMPTY_CONSENT_SIGNATURE: ConsentSignatureData = {
+  mode: 'Type',
+  typedSignature: '',
+  drawnSignatureDataUrl: '',
+};
+
+const DEFAULT_CSV_ANSWERS: Record<string, string | string[]> = {
+  q1FarmTotalHectares: '',
+  q2FarmPlantedHectares: '',
+  q3_2HostTreeDetails: '',
+  q4TruffleSpecies: [],
+  q5aTotalAnnualYieldKg: '',
+  q5bTotalSalesVolumeKg: '',
+  q5cMonitorYieldByType: '',
+  q5dYieldByTypeDetails: '',
+  q6SoilTypes: [],
+  q8aYearsUntilFirstProduction: '',
+  q8bMonitorFirstProductionByType: '',
+  q8cFirstProductionBySpecies: '',
+  q10IrrigationSources: [],
+  q11IrrigationMethods: [],
+  q12IrrigationEmitters: [],
+  q13UsesSoilMoistureMonitoring: '',
+  q14UsesDosingEquipment: '',
+  q15LeafLitterControl: '',
+  q20MulchPractices: [],
+  q21TreePruningMethods: [],
+  q22CultivationMethods: [],
+  q23SoilInoculationMethods: [],
+  q24WeedControlMethods: [],
+  q26CompetingFungiSpecies: [],
+  q28PestDiseaseMonitoringMethods: [],
+  q29HostTreeHealthIssues: [],
+  q30MainTrufflePests: [],
+  q32CoveringAreaPercent: '',
+  q33CoverMaterials: [],
+  q34TruffleDogMode: '',
+  q35DogTrainingMethod: '',
+  q36PostHarvestHandlingDetails: '',
+  q37StorageCapacityDetails: '',
+  q38AverageRefrigerationDays: '',
+  q39aHasTransportRecords: '',
+  q39bTransportDetails: '',
+  q40aEstimatedTotalRevenue: '',
+  q40bShareRevenueComposition: '',
+  q40cSalesChannelRevenueDetails: '',
+  q41ProductQuantityIncomeDetails: '',
+  q42OtherIncomeDetails: '',
+  q45FixedAssetPurchaseCost: '',
+  q46OtherEstablishmentCost: '',
+};
+
 function createEmptyFertiliserMatrixValues(): Record<string, FertiliserMatrixValue> {
   return Object.fromEntries(
     FERTILISER_MATRIX_ROWS.map((row) => [
@@ -1867,6 +1957,26 @@ function isSurveyPage(value: unknown): value is SurveyPage {
   return typeof value === 'string' && SURVEY_PAGE_FLOW.includes(value as SurveyPage);
 }
 
+function formatAustralianDateTime(value: string | null | undefined) {
+  if (!value) {
+    return 'N/A';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'N/A';
+  }
+  return new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Sydney',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
 export default function SurveyForm() {
   const [currentPage, setCurrentPage] = useState<SurveyPage>('page1');
   const [formData, setFormData] = useState<ContactFormData>(EMPTY_FORM_DATA);
@@ -1875,7 +1985,10 @@ export default function SurveyForm() {
   const [isLoadingProgress, setIsLoadingProgress] = useState(true);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [hasSubmittedRecord, setHasSubmittedRecord] = useState(false);
+  const [lastSubmittedAtDisplay, setLastSubmittedAtDisplay] = useState('N/A');
+  const [csvAnswers, setCsvAnswers] = useState<Record<string, string | string[]>>(DEFAULT_CSV_ANSWERS);
   const [consent, setConsent] = useState('');
+  const [consentSignature, setConsentSignature] = useState<ConsentSignatureData>(EMPTY_CONSENT_SIGNATURE);
   const [isPage4SignatureValid, setIsPage4SignatureValid] = useState(false);
   const [backgroundEmail, setBackgroundEmail] = useState('');
   const [backgroundPostcode, setBackgroundPostcode] = useState('');
@@ -1930,9 +2043,21 @@ export default function SurveyForm() {
     studyYear !== '' &&
     completedPreviousYears !== '' &&
     industryWorkTypes.length > 0;
+  const isPage1Valid =
+    formData.givenName.trim() !== '' &&
+    formData.surname.trim() !== '' &&
+    formData.contactNumber.trim() !== '' &&
+    formData.email.trim() !== '' &&
+    formData.farmName.trim() !== '' &&
+    formData.farmStreetAddress.trim() !== '' &&
+    formData.townCity.trim() !== '' &&
+    formData.postcode.trim() !== '' &&
+    formData.state.trim() !== '' &&
+    formData.region.trim() !== '';
   const progressPayload: SurveyProgressPayload = useMemo(
     () => ({
       formData,
+      consentSignature,
       consent,
       backgroundEmail,
       backgroundPostcode,
@@ -1972,6 +2097,7 @@ export default function SurveyForm() {
       solarElectricityProduced,
       irrigationWaterUsage,
       isOnAustralianTruffleMap,
+      csvAnswers,
     }),
     [
       annualOperationalCostEstimate,
@@ -1983,9 +2109,11 @@ export default function SurveyForm() {
       chemicalMonitoring,
       completedPreviousYears,
       competingFungiManagement,
+      csvAnswers,
       concentrateFertiliserLitres,
       concentratedChemicalsAmount,
       consent,
+      consentSignature,
       electricityUsage,
       estimatedBusinessValue,
       estimatedFixedAssetValue,
@@ -2032,10 +2160,23 @@ export default function SurveyForm() {
         }
 
         const payload = (progress.payload ?? {}) as Partial<SurveyProgressPayload>;
-        setCurrentPage(isSurveyPage(progress.current_page) ? progress.current_page : 'page1');
+        const savedPage = isSurveyPage(progress.current_page) ? progress.current_page : 'page1';
+        // For submitted users, reopen from page1 with all previous answers prefilled.
+        // For in-progress users, resume from saved page (except final page).
+        const restoredPage =
+          progress.status === 'submitted'
+            ? 'home'
+            : savedPage === 'final'
+              ? 'section7Map'
+              : savedPage;
+        setCurrentPage(restoredPage);
         setFormData({
           ...EMPTY_FORM_DATA,
           ...(payload.formData ?? {}),
+        });
+        setConsentSignature({
+          ...EMPTY_CONSENT_SIGNATURE,
+          ...(payload.consentSignature ?? {}),
         });
         setConsent(asString(payload.consent));
         setBackgroundEmail(asString(payload.backgroundEmail));
@@ -2074,6 +2215,12 @@ export default function SurveyForm() {
         setSolarElectricityProduced(asString(payload.solarElectricityProduced));
         setIrrigationWaterUsage(asString(payload.irrigationWaterUsage));
         setIsOnAustralianTruffleMap(asString(payload.isOnAustralianTruffleMap));
+        if (payload.csvAnswers && typeof payload.csvAnswers === 'object') {
+          setCsvAnswers({
+            ...DEFAULT_CSV_ANSWERS,
+            ...(payload.csvAnswers as Record<string, string | string[]>),
+          });
+        }
 
         const nextFertiliserMatrix = createEmptyFertiliserMatrixValues();
         const savedFertiliserMatrix = payload.fertiliserMatrixValues;
@@ -2107,6 +2254,8 @@ export default function SurveyForm() {
         setSection3ChemicalMatrixValues(nextChemicalMatrix);
 
         setHasSubmittedRecord(progress.status === 'submitted');
+        setLastSubmittedAtDisplay(formatAustralianDateTime(progress.submitted_at));
+        setIsFinalPageFromSubmit(false);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to load saved survey progress.';
         setSubmitMessage(message);
@@ -2154,6 +2303,24 @@ export default function SurveyForm() {
       prev.includes(workType) ? prev.filter((item) => item !== workType) : [...prev, workType],
     );
   };
+
+  const setCsvTextAnswer = (key: string, value: string) => {
+    setCsvAnswers((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const toggleCsvMultiAnswer = (key: string, value: string) => {
+    setCsvAnswers((prev) => {
+      const current = Array.isArray(prev[key]) ? (prev[key] as string[]) : [];
+      return {
+        ...prev,
+        [key]: current.includes(value)
+          ? current.filter((item) => item !== value)
+          : [...current, value],
+      };
+    });
+  };
+
+  const csvMultiAnswer = (key: string) => (Array.isArray(csvAnswers[key]) ? (csvAnswers[key] as string[]) : []);
 
   const handleFertiliserMatrixChange = (
     row: string,
@@ -2310,8 +2477,27 @@ export default function SurveyForm() {
       </div>
 
       <main
-        className={`${currentPage === 'page1' ? "max-w-3xl" : "max-w-4xl"} mx-auto py-12 px-6 sm:px-12`}
+        className={`${currentPage === 'page1' || currentPage === 'home' ? "max-w-3xl" : "max-w-4xl"} mx-auto py-12 px-6 sm:px-12`}
       >
+        {currentPage === 'home' ? (
+          <section className="border border-gray-200 rounded-md p-6 bg-[#f8f9fa] text-sm text-gray-700 space-y-5">
+            <h2 className="text-xl font-semibold text-[#091a40]">Survey Home</h2>
+            <p className="text-base text-gray-800">
+              You have submitted the survey on: {lastSubmittedAtDisplay}
+            </p>
+            <p className="text-base text-gray-800">You can modify your responses at any time.</p>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('page1')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Open survey
+              </button>
+            </div>
+          </section>
+        ) : null}
+
         {currentPage === 'page1' ? (
           <form onSubmit={handlePage1Next} className="space-y-6">
 
@@ -2443,8 +2629,12 @@ export default function SurveyForm() {
           <div className="flex justify-end pt-8">
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              disabled={isSubmitting || !isPage1Valid}
+              className={`px-6 py-2.5 rounded transition-colors flex items-center font-medium ${
+                isSubmitting || !isPage1Valid
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-[#091a40] text-white hover:bg-[#071433]'
+              }`}
             >
               {isSubmitting ? 'Submitting...' : (
                 <>
@@ -2528,7 +2718,11 @@ export default function SurveyForm() {
 
         {currentPage === 'consentForm' ? (
           <div className="space-y-4">
-            <ConsentFormContent onValidityChange={setIsPage4SignatureValid} />
+            <ConsentFormContent
+              value={consentSignature}
+              onChange={setConsentSignature}
+              onValidityChange={setIsPage4SignatureValid}
+            />
             <div className="flex justify-between pt-2">
               <button
                 type="button"
@@ -2739,6 +2933,54 @@ export default function SurveyForm() {
               </button>
               <button
                 type="button"
+                onClick={() => setCurrentPage('section1FarmSize')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section1FarmSize' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 1 - General information</h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What&apos;s the total size of the farm in hectares?
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={csvAnswers.q1FarmTotalHectares as string}
+                onChange={(e) => setCsvTextAnswer('q1FarmTotalHectares', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What&apos;s the total size of the farm under trees (planted area) for truffle production in hectares?
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={csvAnswers.q2FarmPlantedHectares as string}
+                onChange={(e) => setCsvTextAnswer('q2FarmPlantedHectares', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('toc')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
                 onClick={() => setCurrentPage('section1General')}
                 className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
               >
@@ -2810,7 +3052,7 @@ export default function SurveyForm() {
             <div className="flex justify-between pt-2">
               <button
                 type="button"
-                onClick={() => setCurrentPage('toc')}
+                onClick={() => setCurrentPage('section1FarmSize')}
                 className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
               >
                 Previous page
@@ -2818,12 +3060,188 @@ export default function SurveyForm() {
               <button
                 type="button"
                 disabled={!plantingTimes}
-                onClick={() => setCurrentPage('section1Soil')}
+                onClick={() => setCurrentPage('section1TreesAndSpecies')}
                 className={`px-6 py-2.5 rounded transition-colors flex items-center font-medium ${
                   plantingTimes
                     ? 'bg-[#091a40] text-white hover:bg-[#071433]'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section1TreesAndSpecies' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 1 - General information</h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                Select host tree species in your farm, please provide the number of trees and year of planting details.
+              </label>
+              <textarea
+                value={csvAnswers.q3_2HostTreeDetails as string}
+                onChange={(e) => setCsvTextAnswer('q3_2HostTreeDetails', e.target.value)}
+                rows={4}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+                placeholder="You can list tree species, number of trees, and planting year details here."
+              />
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                What species of truffle are you growing on the farm and on which host tree? (Choose all that apply)
+              </p>
+              {[
+                'Black Truffle (Tuber melanosporum)',
+                'Summer Truffle/Burgundy Truffle (Tuber aestivum/uncinatum)',
+                'Spring White Truffle / Bianchetto Truffle (Tuber borchii)',
+                'Italian White Truffle (Tuber magnatum)',
+                'Others',
+              ].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q4TruffleSpecies').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q4TruffleSpecies', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section1SoilTypes')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section1Yield')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section1Yield' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 1 - General information</h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What was the total annual yield (in kilograms) of truffles in the most recent harvest?
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={csvAnswers.q5aTotalAnnualYieldKg as string}
+                onChange={(e) => setCsvTextAnswer('q5aTotalAnnualYieldKg', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What was the total annual sales volume (in kilograms) of truffles from this farm in the most recent harvest?
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={csvAnswers.q5bTotalSalesVolumeKg as string}
+                onChange={(e) => setCsvTextAnswer('q5bTotalSalesVolumeKg', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">Do you monitor yield for each type of truffle?</p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="q5cMonitorYieldByType"
+                  value="yes"
+                  checked={csvAnswers.q5cMonitorYieldByType === 'yes'}
+                  onChange={(e) => setCsvTextAnswer('q5cMonitorYieldByType', e.target.value)}
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="q5cMonitorYieldByType"
+                  value="no"
+                  checked={csvAnswers.q5cMonitorYieldByType === 'no'}
+                  onChange={(e) => setCsvTextAnswer('q5cMonitorYieldByType', e.target.value)}
+                />
+                No
+              </label>
+            </div>
+            {csvAnswers.q5cMonitorYieldByType === 'yes' ? (
+              <div className="space-y-2">
+                <label className="text-base text-gray-800 block">
+                  If you monitor yield for each type of truffle, please estimate the yield details.
+                </label>
+                <textarea
+                  value={csvAnswers.q5dYieldByTypeDetails as string}
+                  onChange={(e) => setCsvTextAnswer('q5dYieldByTypeDetails', e.target.value)}
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+                />
+              </div>
+            ) : null}
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section1TreesAndSpecies')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section1SoilTypes')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section1SoilTypes' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 1 - General information</h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                What soil types are identified on this farm (the orchard planted area, not whole farm)? Choose all that apply.
+              </p>
+              {['Sandy', 'Sandy loam', 'Loam', 'Silty loam', 'Clay loam', 'Clay', 'Other'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q6SoilTypes').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q6SoilTypes', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section1Yield')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section1Soil')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
               >
                 Next page <span className="ml-2 font-bold">&gt;</span>
               </button>
@@ -2897,6 +3315,79 @@ export default function SurveyForm() {
             <div className="flex justify-end pt-2">
               <button
                 type="button"
+                onClick={() => setCurrentPage('section2FirstProduction')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section2FirstProduction' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 2 - Production management</h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                How many years from planting until first production in your farm?
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={csvAnswers.q8aYearsUntilFirstProduction as string}
+                onChange={(e) => setCsvTextAnswer('q8aYearsUntilFirstProduction', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Do you monitor the time of first production for each type of truffle?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="q8bMonitorFirstProductionByType"
+                  value="yes"
+                  checked={csvAnswers.q8bMonitorFirstProductionByType === 'yes'}
+                  onChange={(e) => setCsvTextAnswer('q8bMonitorFirstProductionByType', e.target.value)}
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="q8bMonitorFirstProductionByType"
+                  value="no"
+                  checked={csvAnswers.q8bMonitorFirstProductionByType === 'no'}
+                  onChange={(e) => setCsvTextAnswer('q8bMonitorFirstProductionByType', e.target.value)}
+                />
+                No
+              </label>
+            </div>
+            {csvAnswers.q8bMonitorFirstProductionByType === 'yes' ? (
+              <div className="space-y-2">
+                <label className="text-base text-gray-800 block">
+                  Please estimate years until first production for each species/host combination.
+                </label>
+                <textarea
+                  value={csvAnswers.q8cFirstProductionBySpecies as string}
+                  onChange={(e) => setCsvTextAnswer('q8cFirstProductionBySpecies', e.target.value)}
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+                />
+              </div>
+            ) : null}
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2Production')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
                 onClick={() => setCurrentPage('section2Rainfall')}
                 className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
               >
@@ -2923,7 +3414,135 @@ export default function SurveyForm() {
             <div className="flex justify-between pt-2">
               <button
                 type="button"
-                onClick={() => setCurrentPage('section2Production')}
+                onClick={() => setCurrentPage('section2FirstProduction')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2Irrigation')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section2Irrigation' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 2 - Production management</h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Source of irrigation water (If there is no irrigation, please select &quot;No irrigation&quot;).
+              </p>
+              {['No irrigation', 'Bore water', 'River/Creek', 'Dam', 'Stored Rainwater', 'Other'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q10IrrigationSources').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q10IrrigationSources', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">How is your farm irrigated? (Choose all that apply)</p>
+              {['Pressurized irrigation system', 'Gravity fed irrigation', 'Other'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q11IrrigationMethods').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q11IrrigationMethods', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">Which irrigation emitters are used? (Choose all that apply)</p>
+              {['Drip irrigation', 'Sprinkler irrigation', 'Other'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q12IrrigationEmitters').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q12IrrigationEmitters', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2Monitoring')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2Monitoring')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section2Monitoring' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 2 - Production management</h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">Do you use soil moisture monitoring equipment?</p>
+              {['yes', 'no'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="q13UsesSoilMoistureMonitoring"
+                    value={option}
+                    checked={csvAnswers.q13UsesSoilMoistureMonitoring === option}
+                    onChange={(e) => setCsvTextAnswer('q13UsesSoilMoistureMonitoring', e.target.value)}
+                  />
+                  {option === 'yes' ? 'Yes' : 'No'}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Do you use dosing equipment (fertigation or chemigation equipment) for irrigation inputs?
+              </p>
+              {['yes', 'no'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="q14UsesDosingEquipment"
+                    value={option}
+                    checked={csvAnswers.q14UsesDosingEquipment === option}
+                    onChange={(e) => setCsvTextAnswer('q14UsesDosingEquipment', e.target.value)}
+                  />
+                  {option === 'yes' ? 'Yes' : 'No'}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What practice do you use to control leaf litter?
+              </label>
+              <input
+                type="text"
+                value={csvAnswers.q15LeafLitterControl as string}
+                onChange={(e) => setCsvTextAnswer('q15LeafLitterControl', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2Irrigation')}
                 className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
               >
                 Previous page
@@ -3301,6 +3920,211 @@ export default function SurveyForm() {
               </button>
               <button
                 type="button"
+                onClick={() => setCurrentPage('section2FieldPracticesA')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section2FieldPracticesA' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 2 - Production management</h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">What methods of weed control do you use? Choose all that apply.</p>
+              {[
+                'Manual',
+                'Mechanical - e.g. whipper snipper',
+                'Spray - Glyphosate',
+                'Spray - Glufosinate ammonium',
+                'Spray - Dicamba',
+                'Spray - other',
+              ].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q24WeedControlMethods').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q24WeedControlMethods', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">What methods of cultivation do you use? Choose all that apply.</p>
+              {['Manual', 'Mechanical', 'None'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q22CultivationMethods').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q22CultivationMethods', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">What tree pruning methods do you use for your trees? Choose all that apply.</p>
+              {['Manual', 'Mechanical', 'Other', 'no pruning'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q21TreePruningMethods').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q21TreePruningMethods', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section3PestMonitoring')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2FieldPracticesB')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section2FieldPracticesB' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 2 - Production management</h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">Do you use mulch on your farm? (Select all that apply)</p>
+              {['None', 'Weed mat system', 'Organic compost', 'Fallen leaf litter', 'Animal manure', 'Limestone (coarse)', 'Other'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q20MulchPractices').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q20MulchPractices', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">What methods of soil inoculation do you use? Choose all that apply.</p>
+              {['Manual', 'Mechanical'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q23SoilInoculationMethods').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q23SoilInoculationMethods', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2FieldPracticesA')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section3PestMonitoring')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section3PestMonitoring' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 3 - Biosecurity management</h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">How do you monitor pests and diseases? (Select all that apply)</p>
+              {[
+                'I do not monitor pests and diseases',
+                'Visual inspection relying on my experience',
+                'Visual inspection using the Truffle Pest and Disease Field Guide',
+                'Insect traps (including tile monitoring and pitfall monitoring)',
+                'I submit samples to diagnostic services',
+                'Others',
+              ].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q28PestDiseaseMonitoringMethods').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q28PestDiseaseMonitoringMethods', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">What are the main host tree health issues you are facing? (Choose all that apply)</p>
+              {[
+                'Nutritional issues',
+                'Trunk lesions and foliage spots',
+                'Powdery mildew',
+                'Tree pests (aphids, mites, borers, miners, scales)',
+                'Stem diseases (stem cankers and cracked bark)',
+                'Phytopthera cinnamonii',
+                'Partial or total tree death',
+                'Others',
+              ].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q29HostTreeHealthIssues').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q29HostTreeHealthIssues', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">What are the main truffle pests in your farm(s)? (Choose all that apply)</p>
+              {[
+                'Australian truffle beetle',
+                'Beetle larvae (Burrowing inside truffle)',
+                'Earwigs',
+                'Fungus gnats',
+                'Millipedes',
+                'Slaters',
+                'Slugs',
+                'Springtails',
+                'Weevils',
+                'Wireworms',
+                'Others',
+              ].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q30MainTrufflePests').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q30MainTrufflePests', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2FieldPracticesB')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
                 onClick={() => setCurrentPage('section3Biosecurity')}
                 className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
               >
@@ -3421,6 +4245,30 @@ export default function SurveyForm() {
                 />
                 Others
               </label>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                What species of competing fungi (or identified fungi) do you see in your farm? Choose all that apply.
+              </p>
+              {[
+                'No, I do not experience competing fungi at my farm',
+                'Yes, I see competing fungi, but I do not know what they are.',
+                'Hebeloma',
+                'Scleroderma',
+                'Thelophora',
+                'Tuber brumale',
+                'Others',
+              ].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q26CompetingFungiSpecies').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q26CompetingFungiSpecies', option)}
+                  />
+                  {option}
+                </label>
+              ))}
             </div>
 
             <div className="space-y-3">
@@ -3698,6 +4546,167 @@ export default function SurveyForm() {
               </button>
               <button
                 type="button"
+                onClick={() => setCurrentPage('section4HarvestA')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section4HarvestA' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 4 - Harvest practice and post-harvest handling</h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What percentage of your planted area require truffle covering pre-harvest? (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={csvAnswers.q32CoveringAreaPercent as string}
+                onChange={(e) => setCsvTextAnswer('q32CoveringAreaPercent', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">What materials do you use to cover your truffle? Choose all that apply.</p>
+              {['Lime', 'Sand', 'Soil', 'Other'].map((option) => (
+                <label key={option} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={csvMultiAnswer('q33CoverMaterials').includes(option)}
+                    onChange={() => toggleCsvMultiAnswer('q33CoverMaterials', option)}
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">Truffle Dog</p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="q34TruffleDogMode"
+                  value="I have my own trained truffle dogs"
+                  checked={csvAnswers.q34TruffleDogMode === 'I have my own trained truffle dogs'}
+                  onChange={(e) => setCsvTextAnswer('q34TruffleDogMode', e.target.value)}
+                />
+                I have my own trained truffle dogs
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="q34TruffleDogMode"
+                  value="I hire dog for truffle detection"
+                  checked={csvAnswers.q34TruffleDogMode === 'I hire dog for truffle detection'}
+                  onChange={(e) => setCsvTextAnswer('q34TruffleDogMode', e.target.value)}
+                />
+                I hire dog for truffle detection
+              </label>
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section4HarvestC')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section4HarvestB')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section4HarvestB' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 4 - Harvest practice and post-harvest handling</h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                Did you train your dog or is your dog trained by dog provider?
+              </label>
+              <input
+                type="text"
+                value={csvAnswers.q35DogTrainingMethod as string}
+                onChange={(e) => setCsvTextAnswer('q35DogTrainingMethod', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                Please suggest the percentage apportioned to each post-harvest handling method.
+              </label>
+              <textarea
+                value={csvAnswers.q36PostHarvestHandlingDetails as string}
+                onChange={(e) => setCsvTextAnswer('q36PostHarvestHandlingDetails', e.target.value)}
+                rows={4}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section4HarvestA')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section4HarvestC')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section4HarvestC' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 4 - Harvest practice and post-harvest handling</h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What is the maximum storage capacity for truffle and truffle products?
+              </label>
+              <textarea
+                value={csvAnswers.q37StorageCapacityDetails as string}
+                onChange={(e) => setCsvTextAnswer('q37StorageCapacityDetails', e.target.value)}
+                rows={3}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                If refrigeration is used, how long is the average refrigeration time before sold? (days)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={csvAnswers.q38AverageRefrigerationDays as string}
+                onChange={(e) => setCsvTextAnswer('q38AverageRefrigerationDays', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section4HarvestB')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
                 onClick={() => setCurrentPage('section5Intro')}
                 className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
               >
@@ -3811,6 +4820,185 @@ export default function SurveyForm() {
               </button>
               <button
                 type="button"
+                onClick={() => setCurrentPage('section5Transport')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section5Transport' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">
+              Section 5 - Sales operation and economic efficiency
+            </h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">Do you have record on how you transport your truffle?</p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="q39aHasTransportRecords"
+                  value="yes"
+                  checked={csvAnswers.q39aHasTransportRecords === 'yes'}
+                  onChange={(e) => setCsvTextAnswer('q39aHasTransportRecords', e.target.value)}
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="q39aHasTransportRecords"
+                  value="no"
+                  checked={csvAnswers.q39aHasTransportRecords === 'no'}
+                  onChange={(e) => setCsvTextAnswer('q39aHasTransportRecords', e.target.value)}
+                />
+                No / Prefer not to say
+              </label>
+            </div>
+            {csvAnswers.q39aHasTransportRecords === 'yes' ? (
+              <div className="space-y-2">
+                <label className="text-base text-gray-800 block">
+                  Transportation methods, average time, loss rate, and annual transportation cost details.
+                </label>
+                <textarea
+                  value={csvAnswers.q39bTransportDetails as string}
+                  onChange={(e) => setCsvTextAnswer('q39bTransportDetails', e.target.value)}
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+                />
+              </div>
+            ) : null}
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5ProductsIncome')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5Revenue')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section5Revenue' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">
+              Section 5 - Sales operation and economic efficiency
+            </h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What was the estimated total revenue from truffles and truffle product sales of the last calendar year? ($AUD)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={csvAnswers.q40aEstimatedTotalRevenue as string}
+                onChange={(e) => setCsvTextAnswer('q40aEstimatedTotalRevenue', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">Would you like to share information on composition of your revenue in the last calendar year?</p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="q40bShareRevenueComposition"
+                  value="yes"
+                  checked={csvAnswers.q40bShareRevenueComposition === 'yes'}
+                  onChange={(e) => setCsvTextAnswer('q40bShareRevenueComposition', e.target.value)}
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="q40bShareRevenueComposition"
+                  value="no"
+                  checked={csvAnswers.q40bShareRevenueComposition === 'no'}
+                  onChange={(e) => setCsvTextAnswer('q40bShareRevenueComposition', e.target.value)}
+                />
+                No
+              </label>
+            </div>
+            {csvAnswers.q40bShareRevenueComposition === 'yes' ? (
+              <div className="space-y-2">
+                <label className="text-base text-gray-800 block">
+                  Through which channels did you sell your products? Please provide estimated annual income per channel.
+                </label>
+                <textarea
+                  value={csvAnswers.q40cSalesChannelRevenueDetails as string}
+                  onChange={(e) => setCsvTextAnswer('q40cSalesChannelRevenueDetails', e.target.value)}
+                  rows={4}
+                  className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+                />
+              </div>
+            ) : null}
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5Transport')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5ProductsIncome')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section5ProductsIncome' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">
+              Section 5 - Sales operation and economic efficiency
+            </h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                Product quantities and income details in the last calendar year.
+              </label>
+              <textarea
+                value={csvAnswers.q41ProductQuantityIncomeDetails as string}
+                onChange={(e) => setCsvTextAnswer('q41ProductQuantityIncomeDetails', e.target.value)}
+                rows={4}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                Other farm/off-farm income details in the last calendar year.
+              </label>
+              <textarea
+                value={csvAnswers.q42OtherIncomeDetails as string}
+                onChange={(e) => setCsvTextAnswer('q42OtherIncomeDetails', e.target.value)}
+                rows={4}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5Revenue')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
                 onClick={() => setCurrentPage('section5FutureProducts')}
                 className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
               >
@@ -3827,7 +5015,7 @@ export default function SurveyForm() {
             </h2>
             <div className="space-y-3">
               <p className="text-base text-gray-800">
-                Do you plan to produce any of the following products within in the next 5 years?
+                Do you plan to produce any of the following products within the next 5 years?
                 Choose all that apply.
               </p>
               <label className="flex items-center gap-2">
@@ -4063,6 +5251,54 @@ export default function SurveyForm() {
               </button>
               <button
                 type="button"
+                onClick={() => setCurrentPage('section6EstablishmentCosts')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section6EstablishmentCosts' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 6 - Economic efficiency</h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What was the total cost of the fixed asset when you bought them, including land, trees, buildings, equipment, machinery, and car? (please estimate)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={csvAnswers.q45FixedAssetPurchaseCost as string}
+                onChange={(e) => setCsvTextAnswer('q45FixedAssetPurchaseCost', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                Apart from the fixed assets, what was the total cost of other things to establish the farm, including labor costs, government charges, and all other expenses? (please estimate)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={csvAnswers.q46OtherEstablishmentCost as string}
+                onChange={(e) => setCsvTextAnswer('q46OtherEstablishmentCost', e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section6EconomicEfficiency')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
                 onClick={() => setCurrentPage('section6AssetValue')}
                 className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
               >
@@ -4107,7 +5343,7 @@ export default function SurveyForm() {
             <div className="flex justify-between pt-2">
               <button
                 type="button"
-                onClick={() => setCurrentPage('section6EconomicEfficiency')}
+                onClick={() => setCurrentPage('section6EstablishmentCosts')}
                 className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
               >
                 Previous page
@@ -4290,7 +5526,7 @@ export default function SurveyForm() {
         {currentPage === 'final' ? (
           <section className="border border-gray-200 rounded-md p-6 bg-[#f8f9fa] text-sm text-gray-700 space-y-4">
             <h2 className="text-xl font-semibold text-[#091a40]">Thank You</h2>
-            {isFinalPageFromSubmit ? <p>Now the survey has been submited!</p> : null}
+            {isFinalPageFromSubmit ? <p>Now the survey has been submitted!</p> : null}
             {isFinalPageFromSubmit ? (
               <a
                 href="/api/survey/export-docx"
@@ -4302,7 +5538,7 @@ export default function SurveyForm() {
               </a>
             ) : null}
             <p>
-              Thank you for take time to participate in this survey, you can close the window now.
+              Thank you for taking the time to participate in this survey. You can close the window now.
             </p>
             <div className="flex justify-end pt-2">
               <button

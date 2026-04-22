@@ -1,6 +1,6 @@
-# Hazelnut Survey Dashboard Prototype
+# Truffle Survey Dashboard Prototype
 
-This project now includes a data architecture aligned to the Hazelnut PDF requirements:
+This project now includes a data architecture aligned to the Truffle PDF requirements:
 
 - Canonical survey schema under `survey.*`
 - Raw landing + staging tables (`raw_responses`, `raw_response_fields`)

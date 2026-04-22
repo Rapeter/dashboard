@@ -1,12 +1,12 @@
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 declare global {
-  var __hazelnutPool: Pool | undefined;
+  var __trufflePool: Pool | undefined;
 }
 
 function getPool() {
-  if (global.__hazelnutPool) {
-    return global.__hazelnutPool;
+  if (global.__trufflePool) {
+    return global.__trufflePool;
   }
 
   const connectionString = process.env.DATABASE_URL;
@@ -16,7 +16,7 @@ function getPool() {
 
   const pool = new Pool({ connectionString });
   if (process.env.NODE_ENV !== "production") {
-    global.__hazelnutPool = pool;
+    global.__trufflePool = pool;
   }
   return pool;
 }

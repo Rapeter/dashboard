@@ -1,5 +1,81 @@
 "use client"
 import React, { useState } from 'react';
+import { PlainLanguageStatementContent } from '@/app/survey/components/plain-language-statement-content';
+import { ConsentFormContent } from '@/app/survey/components/consent-form-content';
+
+type SurveyPage =
+  | 'page1'
+  | 'pls'
+  | 'consent'
+  | 'consentForm'
+  | 'studyYear'
+  | 'toc'
+  | 'section1General'
+  | 'section1Soil'
+  | 'section2Production'
+  | 'section2Rainfall'
+  | 'section2Fertiliser'
+  | 'section2FertiliserFollowup'
+  | 'section3Biosecurity'
+  | 'section3ChemicalFollowup'
+  | 'section5Intro'
+  | 'section5Traceability'
+  | 'section5FutureProducts'
+  | 'final';
+const SURVEY_PAGE_FLOW: SurveyPage[] = [
+  'page1',
+  'pls',
+  'consent',
+  'consentForm',
+  'studyYear',
+  'toc',
+  'section1General',
+  'section1Soil',
+  'section2Production',
+  'section2Rainfall',
+  'section2Fertiliser',
+  'section2FertiliserFollowup',
+  'section3Biosecurity',
+  'section3ChemicalFollowup',
+  'section5Intro',
+  'section5Traceability',
+  'section5FutureProducts',
+  'final',
+];
+
+const FERTILISER_MATRIX_COLUMNS = [
+  "Total Quantity per Year in Solid Form (in kilogram)",
+  "Total Quantity per Year (Ready-to-Use Liquid Chemicals, Liters)",
+  "Total Quantity per Year (Liquid Concentrates, Liters)",
+  "How many times do you apply per year",
+] as const;
+
+const FERTILISER_MATRIX_ROWS = [
+  "Inorganic macronutritions such as N, P, K, Ca, Mg.",
+  "Inorganic micronutrients such as Fe, Zinc, Mn, Cu, Mo, Boron etc. (Synthetic)",
+  "Humic acid / Fulvic acid",
+  "Molasses",
+  "Seaweed derivatives",
+  "Animal-derived organic fertiliser, such as Fish emulsion, Bone meal, Blood meal",
+  "pH Adjusters: (e.g., Acids, Chlorine, Hydrogen Peroxide, lime, dolomite)",
+  "Other",
+] as const;
+
+const SECTION3_CHEMICAL_MATRIX_COLUMNS = [
+  "Total quantity per year in solid form (kilograms)",
+  "Total quantity per year in ready-to-use liquid form (litres)",
+  "Total Quantity per Year in liquid concentrate form (litres)",
+] as const;
+
+const SECTION3_CHEMICAL_MATRIX_ROWS = [
+  "Insecticides",
+  "Herbicides (for weeds)",
+  "Rodenticides",
+  "Acaricides (for mites)",
+  "Repellents (for various pests)",
+  "Biological control agents",
+  "Others",
+] as const;
 
 const REGIONS_BY_STATE: Record<string, string[]> = {
   VIC: [
@@ -1675,6 +1751,7 @@ const REGIONS_BY_STATE: Record<string, string[]> = {
 };
 
 export default function SurveyForm() {
+  const [currentPage, setCurrentPage] = useState<SurveyPage>('page1');
   const [formData, setFormData] = useState({
     givenName: '',
     surname: '',
@@ -1689,7 +1766,123 @@ export default function SurveyForm() {
   });
   const [submitMessage, setSubmitMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [consent, setConsent] = useState('');
+  const [isPage4SignatureValid, setIsPage4SignatureValid] = useState(false);
+  const [backgroundEmail, setBackgroundEmail] = useState('');
+  const [backgroundPostcode, setBackgroundPostcode] = useState('');
+  const [studyYear, setStudyYear] = useState('');
+  const [completedPreviousYears, setCompletedPreviousYears] = useState('');
+  const [industryWorkTypes, setIndustryWorkTypes] = useState<string[]>([]);
+  const [plantingTimes, setPlantingTimes] = useState('');
+  const [soilTypesIdentified, setSoilTypesIdentified] = useState('');
+  const [estimatedRainfall, setEstimatedRainfall] = useState('');
+  const [solidFertiliserKg, setSolidFertiliserKg] = useState('');
+  const [readyLiquidFertiliserLitres, setReadyLiquidFertiliserLitres] = useState('');
+  const [concentrateFertiliserLitres, setConcentrateFertiliserLitres] = useState('');
+  const [fertiliserMonitoring, setFertiliserMonitoring] = useState('');
+  const [fertiliserMatrixValues, setFertiliserMatrixValues] = useState<
+    Record<string, { solid: string; ready: string; concentrate: string; applyTimes: string }>
+  >(() =>
+    Object.fromEntries(
+      FERTILISER_MATRIX_ROWS.map((row) => [
+        row,
+        { solid: '', ready: '', concentrate: '', applyTimes: '' },
+      ]),
+    ),
+  );
+  const [soilTestsSince2021, setSoilTestsSince2021] = useState<string[]>([]);
+  const [soilTestsSince2024, setSoilTestsSince2024] = useState<string[]>([]);
+  const [sapOrLeafTestingSince2024, setSapOrLeafTestingSince2024] = useState('');
+  const [structuredFarmPlanAnswers, setStructuredFarmPlanAnswers] = useState<string[]>([]);
+  const [bioIssuesTopThree, setBioIssuesTopThree] = useState<string[]>([]);
+  const [competingFungiManagement, setCompetingFungiManagement] = useState<string[]>([]);
+  const [solidChemicalsAmount, setSolidChemicalsAmount] = useState('');
+  const [readyLiquidChemicalsAmount, setReadyLiquidChemicalsAmount] = useState('');
+  const [concentratedChemicalsAmount, setConcentratedChemicalsAmount] = useState('');
+  const [chemicalMonitoring, setChemicalMonitoring] = useState('');
+  const [section3ChemicalMatrixValues, setSection3ChemicalMatrixValues] = useState<
+    Record<string, { solid: string; ready: string; concentrate: string }>
+  >(() =>
+    Object.fromEntries(
+      SECTION3_CHEMICAL_MATRIX_ROWS.map((row) => [row, { solid: '', ready: '', concentrate: '' }]),
+    ),
+  );
+  const [usesPoultryForPestControl, setUsesPoultryForPestControl] = useState('');
+  const [traceabilitySystem, setTraceabilitySystem] = useState('');
+  const [plannedProductsIn5Years, setPlannedProductsIn5Years] = useState<string[]>([]);
   const availableRegions = REGIONS_BY_STATE[formData.state] ?? [];
+  const totalPages = SURVEY_PAGE_FLOW.length;
+  const currentPageIndex = SURVEY_PAGE_FLOW.indexOf(currentPage);
+  const progressPercent = Math.round((currentPageIndex / (totalPages - 1)) * 100);
+  const isStudyYearPageValid =
+    backgroundEmail.trim() !== '' &&
+    backgroundPostcode.trim() !== '' &&
+    studyYear !== '' &&
+    completedPreviousYears !== '' &&
+    industryWorkTypes.length > 0;
+
+  const toggleIndustryWorkType = (workType: string) => {
+    setIndustryWorkTypes((prev) =>
+      prev.includes(workType) ? prev.filter((item) => item !== workType) : [...prev, workType],
+    );
+  };
+
+  const handleFertiliserMatrixChange = (
+    row: string,
+    field: 'solid' | 'ready' | 'concentrate' | 'applyTimes',
+    value: string,
+  ) => {
+    setFertiliserMatrixValues((prev) => ({
+      ...prev,
+      [row]: {
+        ...prev[row],
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleSection3ChemicalMatrixChange = (
+    row: string,
+    field: 'solid' | 'ready' | 'concentrate',
+    value: string,
+  ) => {
+    setSection3ChemicalMatrixValues((prev) => ({
+      ...prev,
+      [row]: {
+        ...prev[row],
+        [field]: value,
+      },
+    }));
+  };
+
+  const toggleMultiSelect = (
+    value: string,
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
+  ) => {
+    setter((prev) => (prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]));
+  };
+
+  const handleConsentNextPage = () => {
+    if (consent === 'no') {
+      setCurrentPage('final');
+      return;
+    }
+    if (consent === 'yes') {
+      setCurrentPage('consentForm');
+    }
+  };
+
+  const handleCloseWindow = () => {
+    window.open('', '_self');
+    window.close();
+
+    // Fallback for browsers that block window.close() on non-script-opened tabs.
+    setTimeout(() => {
+      if (!window.closed) {
+        window.location.replace('about:blank');
+      }
+    }, 100);
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -1738,6 +1931,7 @@ export default function SurveyForm() {
         throw new Error(result.error ?? 'Failed to submit survey.');
       }
       setSubmitMessage(`Submitted successfully. Response ID: ${result.responseId}`);
+      setCurrentPage('pls');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       setSubmitMessage(`Submit failed: ${message}`);
@@ -1760,15 +1954,20 @@ export default function SurveyForm() {
 
       {/* Progress Bar */}
       <div className="w-full bg-gray-300 h-[6px]">
-        <div className="bg-[#091a40] h-full w-[1%]"></div>
+        <div
+          className="bg-[#091a40] h-full"
+          style={{ width: `${progressPercent}%` }}
+        ></div>
       </div>
       <div className="px-4 py-1 text-sm text-gray-600">
-        0% Survey Completion
+        {progressPercent}% Survey Completion
       </div>
 
-      {/* Form Container */}
-      <main className="max-w-3xl mx-auto py-12 px-6 sm:px-12">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <main
+        className={`${currentPage === 'page1' ? "max-w-3xl" : "max-w-4xl"} mx-auto py-12 px-6 sm:px-12`}
+      >
+        {currentPage === 'page1' ? (
+          <form onSubmit={handleSubmit} className="space-y-6">
 
           <h2 className="text-xl text-gray-800 mb-6">
             <span className="text-black">*</span> Please provide the following information.
@@ -1911,7 +2110,1490 @@ export default function SurveyForm() {
           {submitMessage ? (
             <p className="text-sm text-gray-700">{submitMessage}</p>
           ) : null}
-        </form>
+          </form>
+        ) : null}
+
+        {currentPage === 'pls' ? (
+          <div className="space-y-6">
+            <PlainLanguageStatementContent />
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('consent')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {currentPage === 'consent' ? (
+          <section className="border border-gray-200 rounded-md p-6 bg-[#f8f9fa] text-sm text-gray-700 space-y-5">
+            <h2 className="text-xl font-semibold text-[#091a40]">Consent</h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Do you consent to participate in this project?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="consent"
+                  value="yes"
+                  checked={consent === 'yes'}
+                  onChange={(e) => setConsent(e.target.value)}
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="consent"
+                  value="no"
+                  checked={consent === 'no'}
+                  onChange={(e) => setConsent(e.target.value)}
+                />
+                No
+              </label>
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('pls')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                disabled={!consent}
+                onClick={handleConsentNextPage}
+                className={`px-6 py-2.5 rounded transition-colors flex items-center font-medium ${
+                  consent
+                    ? 'bg-[#091a40] text-white hover:bg-[#071433]'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'consentForm' ? (
+          <div className="space-y-4">
+            <ConsentFormContent onValidityChange={setIsPage4SignatureValid} />
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('consent')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                disabled={!isPage4SignatureValid}
+                onClick={() => setCurrentPage('studyYear')}
+                className={`px-6 py-2.5 rounded transition-colors flex items-center font-medium ${
+                  isPage4SignatureValid
+                    ? 'bg-[#091a40] text-white hover:bg-[#071433]'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {currentPage === 'studyYear' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-xl font-semibold text-[#091a40]">Background information</h2>
+            <p className="text-base text-gray-800">
+              Please provide the following information. If you have multiple farms, please fill in a
+              questionnaire for each farm. (Compulsory question)
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">Email</label>
+              <input
+                type="text"
+                value={backgroundEmail}
+                onChange={(e) => setBackgroundEmail(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">Postcode</label>
+              <input
+                type="text"
+                value={backgroundPostcode}
+                onChange={(e) => setBackgroundPostcode(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                Year of survey (Compulsory question)
+              </label>
+              <select
+                value={studyYear}
+                onChange={(e) => setStudyYear(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              >
+                <option value=""></option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+                <option value="2028">2028</option>
+                <option value="2029">2029</option>
+                <option value="2030">2030</option>
+                <option value="2031">2031</option>
+                <option value="2032">2032</option>
+                <option value="2033">2033</option>
+                <option value="2034">2034</option>
+                <option value="2035">2035</option>
+                <option value="2036">2036</option>
+              </select>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Did you complete this questionnaire in previous years? (Compulsory question)
+              </p>
+              <p className="text-sm text-gray-700">
+                (Paper based benchmarking questionnaire prior to 2025 does not count)
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="completedPreviousYears"
+                  value="yes"
+                  checked={completedPreviousYears === 'yes'}
+                  onChange={(e) => setCompletedPreviousYears(e.target.value)}
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="completedPreviousYears"
+                  value="no"
+                  checked={completedPreviousYears === 'no'}
+                  onChange={(e) => setCompletedPreviousYears(e.target.value)}
+                />
+                No
+              </label>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Which of the following applies to your work in the truffle industry? Choose all that
+                apply. (Compulsory question)
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={industryWorkTypes.includes('Nursery producer')}
+                  onChange={() => toggleIndustryWorkType('Nursery producer')}
+                />
+                Nursery producer
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={industryWorkTypes.includes('Pre-production truffle grower (not yet producing)')}
+                  onChange={() =>
+                    toggleIndustryWorkType('Pre-production truffle grower (not yet producing)')
+                  }
+                />
+                Pre-production truffle grower (not yet producing)
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={industryWorkTypes.includes('Truffle grower (currently producing)')}
+                  onChange={() => toggleIndustryWorkType('Truffle grower (currently producing)')}
+                />
+                Truffle grower (currently producing)
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={industryWorkTypes.includes('Aggregator/wholesaler')}
+                  onChange={() => toggleIndustryWorkType('Aggregator/wholesaler')}
+                />
+                Aggregator/wholesaler
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={industryWorkTypes.includes('Exporter')}
+                  onChange={() => toggleIndustryWorkType('Exporter')}
+                />
+                Exporter
+              </label>
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('consentForm')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                disabled={!isStudyYearPageValid}
+                onClick={() => setCurrentPage('toc')}
+                className={`px-6 py-2.5 rounded transition-colors flex items-center font-medium ${
+                  isStudyYearPageValid
+                    ? 'bg-[#091a40] text-white hover:bg-[#071433]'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'toc' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Table of contents</h2>
+
+            <div className="space-y-2 text-base">
+              <p>Section 1 - General information</p>
+              <p>Section 2 - Production management</p>
+              <p>Section 3 - Biosecurity management</p>
+              <p>Section 4 - Harvest practice and post-harvest handling</p>
+              <p>Section 5 - Sales operation</p>
+              <p>Section 6 - Economic efficiency</p>
+              <p>Section 7 - Energy consumption and sustainability</p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-base font-semibold text-[#091a40]">Important information:</p>
+              <p>1. The survey is auto-saved, you can return anytime using the same device/browser.</p>
+              <p>2. Incomplete surveys may be submitted.</p>
+              <p>3. You may leave answers blank and skip questions.</p>
+              <p>4. You may provide estimated values when exact values are not known.</p>
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('studyYear')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section1General')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section1General' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 1 - General information</h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                At the same farm location, was the orchard planted in different years? If so, how
+                many separate planting times were there?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="plantingTimes"
+                  value="1"
+                  checked={plantingTimes === '1'}
+                  onChange={(e) => setPlantingTimes(e.target.value)}
+                />
+                1
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="plantingTimes"
+                  value="2"
+                  checked={plantingTimes === '2'}
+                  onChange={(e) => setPlantingTimes(e.target.value)}
+                />
+                2
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="plantingTimes"
+                  value="3"
+                  checked={plantingTimes === '3'}
+                  onChange={(e) => setPlantingTimes(e.target.value)}
+                />
+                3
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="plantingTimes"
+                  value="4"
+                  checked={plantingTimes === '4'}
+                  onChange={(e) => setPlantingTimes(e.target.value)}
+                />
+                4
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="plantingTimes"
+                  value="5 and above"
+                  checked={plantingTimes === '5 and above'}
+                  onChange={(e) => setPlantingTimes(e.target.value)}
+                />
+                5 and above
+              </label>
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('toc')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                disabled={!plantingTimes}
+                onClick={() => setCurrentPage('section1Soil')}
+                className={`px-6 py-2.5 rounded transition-colors flex items-center font-medium ${
+                  plantingTimes
+                    ? 'bg-[#091a40] text-white hover:bg-[#071433]'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section1Soil' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 1 - General information</h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Are the different soil types identified in farm mapping (the orchard planted area,
+                not the whole farm)?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="soilTypesIdentified"
+                  value="yes"
+                  checked={soilTypesIdentified === 'yes'}
+                  onChange={(e) => setSoilTypesIdentified(e.target.value)}
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="soilTypesIdentified"
+                  value="no"
+                  checked={soilTypesIdentified === 'no'}
+                  onChange={(e) => setSoilTypesIdentified(e.target.value)}
+                />
+                No
+              </label>
+            </div>
+
+            <p className="text-sm text-gray-700">
+              Caution: After you click &apos;Next&apos;, you will proceed to the next section and
+              will not be able to return to this section. Please double-check before continuing to
+              the next section.
+            </p>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section1General')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                disabled={!soilTypesIdentified}
+                onClick={() => setCurrentPage('section2Production')}
+                className={`px-6 py-2.5 rounded transition-colors flex items-center font-medium ${
+                  soilTypesIdentified
+                    ? 'bg-[#091a40] text-white hover:bg-[#071433]'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section2Production' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 2 - Production management</h2>
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2Rainfall')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section2Rainfall' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 2 - Production management</h2>
+            <div className="space-y-2">
+              <label className="text-base text-gray-800 block">
+                What was the estimated rainfall at your farm in the last Calendar year? (in mm)
+              </label>
+              <input
+                type="text"
+                value={estimatedRainfall}
+                onChange={(e) => setEstimatedRainfall(e.target.value)}
+                className="w-full border border-gray-300 rounded-[4px] p-2.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2Production')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2Fertiliser')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section2Fertiliser' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 2 - Production management</h2>
+            <div className="space-y-2">
+              <p className="text-base text-gray-800">
+                What was the total amount (in kilograms or litres) of fertiliser used on the whole
+                farm in the last calendar year? (Leave blank if none used)
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-gray-800">
+                I use solid fertiliser (including dissolving it to make your own liquid fertiliser)
+                (kilograms)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={solidFertiliserKg}
+                onChange={(e) => setSolidFertiliserKg(e.target.value)}
+                className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-gray-800">
+                I use ready-to-use liquid fertiliser (litres)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={readyLiquidFertiliserLitres}
+                onChange={(e) => setReadyLiquidFertiliserLitres(e.target.value)}
+                className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-gray-800">
+                I use liquid fertiliser concentrate, which I dilute before use (litres)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={concentrateFertiliserLitres}
+                onChange={(e) => setConcentrateFertiliserLitres(e.target.value)}
+                className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Did you monitor the amount of fertiliser you used in each category during the past
+                calendar year?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="fertiliserMonitoring"
+                  value="yes"
+                  checked={fertiliserMonitoring === 'yes'}
+                  onChange={(e) => setFertiliserMonitoring(e.target.value)}
+                />
+                Yes, please estimate the amount you used in each category in the next question
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="fertiliserMonitoring"
+                  value="no"
+                  checked={fertiliserMonitoring === 'no'}
+                  onChange={(e) => setFertiliserMonitoring(e.target.value)}
+                />
+                No, I do not monitor the amount of chemicals I used in each category
+              </label>
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2Rainfall')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                disabled={!fertiliserMonitoring}
+                onClick={() => setCurrentPage('section2FertiliserFollowup')}
+                className={`px-6 py-2.5 rounded transition-colors flex items-center font-medium ${
+                  fertiliserMonitoring
+                    ? 'bg-[#091a40] text-white hover:bg-[#071433]'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section2FertiliserFollowup' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">
+              Section 2 - Production management (Follow-up)
+            </h2>
+
+            {fertiliserMonitoring === 'yes' ? (
+              <>
+                <p className="text-base text-gray-800">
+                  How many kilograms or litres of each type of fertiliser did you use for the whole
+                  farm in the last calendar year? (leave zero if none used, please estimate the
+                  numbers)
+                </p>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border border-gray-200 text-sm">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="border border-gray-200 p-2 text-left font-semibold w-[30ch]">
+                          Type
+                        </th>
+                        <th className="border border-gray-200 p-2 text-left font-semibold max-w-[24ch] whitespace-normal break-words">
+                          {FERTILISER_MATRIX_COLUMNS[0]}
+                        </th>
+                        <th className="border border-gray-200 p-2 text-left font-semibold max-w-[24ch] whitespace-normal break-words">
+                          {FERTILISER_MATRIX_COLUMNS[1]}
+                        </th>
+                        <th className="border border-gray-200 p-2 text-left font-semibold max-w-[24ch] whitespace-normal break-words">
+                          {FERTILISER_MATRIX_COLUMNS[2]}
+                        </th>
+                        <th className="border border-gray-200 p-2 text-left font-semibold max-w-[24ch] whitespace-normal break-words">
+                          {FERTILISER_MATRIX_COLUMNS[3]}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {FERTILISER_MATRIX_ROWS.map((row) => (
+                        <tr key={row}>
+                          <td className="border border-gray-200 p-2 align-top">{row}</td>
+                          <td className="border border-gray-200 p-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={fertiliserMatrixValues[row]?.solid ?? ''}
+                              onChange={(e) =>
+                                handleFertiliserMatrixChange(row, 'solid', e.target.value)
+                              }
+                              className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+                            />
+                          </td>
+                          <td className="border border-gray-200 p-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={fertiliserMatrixValues[row]?.ready ?? ''}
+                              onChange={(e) =>
+                                handleFertiliserMatrixChange(row, 'ready', e.target.value)
+                              }
+                              className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+                            />
+                          </td>
+                          <td className="border border-gray-200 p-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={fertiliserMatrixValues[row]?.concentrate ?? ''}
+                              onChange={(e) =>
+                                handleFertiliserMatrixChange(row, 'concentrate', e.target.value)
+                              }
+                              className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+                            />
+                          </td>
+                          <td className="border border-gray-200 p-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={fertiliserMatrixValues[row]?.applyTimes ?? ''}
+                              onChange={(e) =>
+                                handleFertiliserMatrixChange(row, 'applyTimes', e.target.value)
+                              }
+                              className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : null}
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Have you conducted any of the following types of soil tests in the past 5 years
+                (since January 2021)?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={soilTestsSince2021.includes('pH and soil mineralogy')}
+                  onChange={() =>
+                    toggleMultiSelect('pH and soil mineralogy', setSoilTestsSince2021)
+                  }
+                />
+                pH and soil mineralogy
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={soilTestsSince2021.includes('Chemical residuals')}
+                  onChange={() => toggleMultiSelect('Chemical residuals', setSoilTestsSince2021)}
+                />
+                Chemical residuals
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={soilTestsSince2021.includes('Heavy metal')}
+                  onChange={() => toggleMultiSelect('Heavy metal', setSoilTestsSince2021)}
+                />
+                Heavy metal
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={soilTestsSince2021.includes('Microbiome')}
+                  onChange={() => toggleMultiSelect('Microbiome', setSoilTestsSince2021)}
+                />
+                Microbiome
+              </label>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Have you conducted any of the following types of soil tests since Jan 2024?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={soilTestsSince2024.includes('pH and soil mineralogy')}
+                  onChange={() =>
+                    toggleMultiSelect('pH and soil mineralogy', setSoilTestsSince2024)
+                  }
+                />
+                pH and soil mineralogy
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={soilTestsSince2024.includes('Chemical residuals')}
+                  onChange={() => toggleMultiSelect('Chemical residuals', setSoilTestsSince2024)}
+                />
+                Chemical residuals
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={soilTestsSince2024.includes('Heavy metal')}
+                  onChange={() => toggleMultiSelect('Heavy metal', setSoilTestsSince2024)}
+                />
+                Heavy metal
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={soilTestsSince2024.includes('Microbiome')}
+                  onChange={() => toggleMultiSelect('Microbiome', setSoilTestsSince2024)}
+                />
+                Microbiome
+              </label>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Have you done tree foliage sap testing and/or leaf/petiole chemical analysis since
+                Jan 2024?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="sapOrLeafTestingSince2024"
+                  value="yes"
+                  checked={sapOrLeafTestingSince2024 === 'yes'}
+                  onChange={(e) => setSapOrLeafTestingSince2024(e.target.value)}
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="sapOrLeafTestingSince2024"
+                  value="no"
+                  checked={sapOrLeafTestingSince2024 === 'no'}
+                  onChange={(e) => setSapOrLeafTestingSince2024(e.target.value)}
+                />
+                No
+              </label>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Do you have a structured farm plan for management purposes? Choose multiple answers
+                if appropriate.
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={structuredFarmPlanAnswers.includes('No')}
+                  onChange={() => toggleMultiSelect('No', setStructuredFarmPlanAnswers)}
+                />
+                No
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={structuredFarmPlanAnswers.includes('Yes - all trees are numbered')}
+                  onChange={() =>
+                    toggleMultiSelect('Yes - all trees are numbered', setStructuredFarmPlanAnswers)
+                  }
+                />
+                Yes - all trees are numbered
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={structuredFarmPlanAnswers.includes('Yes - all rows are numbered')}
+                  onChange={() =>
+                    toggleMultiSelect('Yes - all rows are numbered', setStructuredFarmPlanAnswers)
+                  }
+                />
+                Yes - all rows are numbered
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={structuredFarmPlanAnswers.includes('Only partially numbered')}
+                  onChange={() =>
+                    toggleMultiSelect('Only partially numbered', setStructuredFarmPlanAnswers)
+                  }
+                />
+                Only partially numbered
+              </label>
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2Fertiliser')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section3Biosecurity')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section3Biosecurity' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 3 - Biosecurity management</h2>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                What are the three most important biological issues affecting your farm(s) in the
+                past calendar year? Choose the most important three.
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={bioIssuesTopThree.includes(
+                    'Health of the host trees (including nutrient issues, pests and diseases)',
+                  )}
+                  onChange={() =>
+                    toggleMultiSelect(
+                      'Health of the host trees (including nutrient issues, pests and diseases)',
+                      setBioIssuesTopThree,
+                    )
+                  }
+                />
+                Health of the host trees (including nutrient issues, pests and diseases)
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={bioIssuesTopThree.includes(
+                    'Truffle invertebrate pests (including slugs, larvae/worms, fungus gnats, millipedes, slaters, slugs, springtails)',
+                  )}
+                  onChange={() =>
+                    toggleMultiSelect(
+                      'Truffle invertebrate pests (including slugs, larvae/worms, fungus gnats, millipedes, slaters, slugs, springtails)',
+                      setBioIssuesTopThree,
+                    )
+                  }
+                />
+                Truffle invertebrate pests (including slugs, larvae/worms, fungus gnats,
+                millipedes, slaters, slugs, springtails)
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={bioIssuesTopThree.includes(
+                    'Vertebrates (for example possums, rabbits, wallabies)',
+                  )}
+                  onChange={() =>
+                    toggleMultiSelect(
+                      'Vertebrates (for example possums, rabbits, wallabies)',
+                      setBioIssuesTopThree,
+                    )
+                  }
+                />
+                Vertebrates (for example possums, rabbits, wallabies)
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={bioIssuesTopThree.includes('Truffle rot')}
+                  onChange={() => toggleMultiSelect('Truffle rot', setBioIssuesTopThree)}
+                />
+                Truffle rot
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={bioIssuesTopThree.includes('Post-harvest truffle spoilage')}
+                  onChange={() =>
+                    toggleMultiSelect('Post-harvest truffle spoilage', setBioIssuesTopThree)
+                  }
+                />
+                Post-harvest truffle spoilage
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={bioIssuesTopThree.includes(
+                    'Contamination with other ectomycorrhizae (Other fungi)',
+                  )}
+                  onChange={() =>
+                    toggleMultiSelect(
+                      'Contamination with other ectomycorrhizae (Other fungi)',
+                      setBioIssuesTopThree,
+                    )
+                  }
+                />
+                Contamination with other ectomycorrhizae (Other fungi)
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={bioIssuesTopThree.includes(
+                    'Nursery stock provenance and incoming plant health',
+                  )}
+                  onChange={() =>
+                    toggleMultiSelect(
+                      'Nursery stock provenance and incoming plant health',
+                      setBioIssuesTopThree,
+                    )
+                  }
+                />
+                Nursery stock provenance and incoming plant health
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={bioIssuesTopThree.includes('Others')}
+                  onChange={() => toggleMultiSelect('Others', setBioIssuesTopThree)}
+                />
+                Others
+              </label>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                How do you manage the competing fungi in your farm? Choose all that apply.
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={competingFungiManagement.includes('I do not manage competing fungi')}
+                  onChange={() =>
+                    toggleMultiSelect('I do not manage competing fungi', setCompetingFungiManagement)
+                  }
+                />
+                I do not manage competing fungi
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={competingFungiManagement.includes(
+                    'Isolate and quarantine sections of the farm',
+                  )}
+                  onChange={() =>
+                    toggleMultiSelect(
+                      'Isolate and quarantine sections of the farm',
+                      setCompetingFungiManagement,
+                    )
+                  }
+                />
+                Isolate and quarantine sections of the farm
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={competingFungiManagement.includes('Physical removal')}
+                  onChange={() =>
+                    toggleMultiSelect('Physical removal', setCompetingFungiManagement)
+                  }
+                />
+                Physical removal
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={competingFungiManagement.includes('Regulating soil pH')}
+                  onChange={() => toggleMultiSelect('Regulating soil pH', setCompetingFungiManagement)}
+                />
+                Regulating soil pH
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={competingFungiManagement.includes('Others')}
+                  onChange={() => toggleMultiSelect('Others', setCompetingFungiManagement)}
+                />
+                Others
+              </label>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-base text-gray-800">
+                What is the total amount of chemicals (excluding fertiliser, including insecticides,
+                herbicides, rodenticides, acaricides, repellents, biological controls, etc.) used on
+                your farm in the last calendar year? (in kilograms or litres)
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-gray-800">
+                Solid chemicals (including dissolving it to make your own liquid fertiliser)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={solidChemicalsAmount}
+                onChange={(e) => setSolidChemicalsAmount(e.target.value)}
+                className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-gray-800">Ready-to-use liquid chemicals</label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={readyLiquidChemicalsAmount}
+                onChange={(e) => setReadyLiquidChemicalsAmount(e.target.value)}
+                className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-gray-800">
+                Liquid chemical concentrate, which I dilute before use
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={concentratedChemicalsAmount}
+                onChange={(e) => setConcentratedChemicalsAmount(e.target.value)}
+                className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Did you monitor the amount of chemicals you used in each category during the past
+                calendar year? (excluding fertiliser, including insecticides, herbicides,
+                rodenticides, acaricides, repellents, biological controls, etc.)
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="chemicalMonitoring"
+                  value="yes"
+                  checked={chemicalMonitoring === 'yes'}
+                  onChange={(e) => setChemicalMonitoring(e.target.value)}
+                />
+                Yes, please estimate the amount you used in each category in the next question
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="chemicalMonitoring"
+                  value="no"
+                  checked={chemicalMonitoring === 'no'}
+                  onChange={(e) => setChemicalMonitoring(e.target.value)}
+                />
+                No, I did not monitor the amount of chemicals I used in each category
+              </label>
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section2FertiliserFollowup')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                disabled={!chemicalMonitoring}
+                onClick={() => setCurrentPage('section3ChemicalFollowup')}
+                className={`px-6 py-2.5 rounded transition-colors flex items-center font-medium ${
+                  chemicalMonitoring
+                    ? 'bg-[#091a40] text-white hover:bg-[#071433]'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section3ChemicalFollowup' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">Section 3 - Biosecurity management</h2>
+
+            {chemicalMonitoring === 'yes' ? (
+              <>
+                <p className="text-base text-gray-800">
+                  What chemicals did you use on farm in the past calendar year? (in kilograms or
+                  litres)
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border border-gray-200 text-sm">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="border border-gray-200 p-2 text-left font-semibold w-[26ch] max-w-[26ch] whitespace-normal break-words">
+                          Type
+                        </th>
+                        <th className="border border-gray-200 p-2 text-left font-semibold w-[24ch] max-w-[24ch] whitespace-normal break-words">
+                          {SECTION3_CHEMICAL_MATRIX_COLUMNS[0]}
+                        </th>
+                        <th className="border border-gray-200 p-2 text-left font-semibold w-[24ch] max-w-[24ch] whitespace-normal break-words">
+                          {SECTION3_CHEMICAL_MATRIX_COLUMNS[1]}
+                        </th>
+                        <th className="border border-gray-200 p-2 text-left font-semibold w-[24ch] max-w-[24ch] whitespace-normal break-words">
+                          {SECTION3_CHEMICAL_MATRIX_COLUMNS[2]}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {SECTION3_CHEMICAL_MATRIX_ROWS.map((row) => (
+                        <tr key={row}>
+                          <td className="border border-gray-200 p-2 align-top w-[26ch] max-w-[26ch] whitespace-normal break-words">
+                            {row}
+                          </td>
+                          <td className="border border-gray-200 p-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={section3ChemicalMatrixValues[row]?.solid ?? ''}
+                              onChange={(e) =>
+                                handleSection3ChemicalMatrixChange(row, 'solid', e.target.value)
+                              }
+                              className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+                            />
+                          </td>
+                          <td className="border border-gray-200 p-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={section3ChemicalMatrixValues[row]?.ready ?? ''}
+                              onChange={(e) =>
+                                handleSection3ChemicalMatrixChange(row, 'ready', e.target.value)
+                              }
+                              className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+                            />
+                          </td>
+                          <td className="border border-gray-200 p-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={section3ChemicalMatrixValues[row]?.concentrate ?? ''}
+                              onChange={(e) =>
+                                handleSection3ChemicalMatrixChange(
+                                  row,
+                                  'concentrate',
+                                  e.target.value,
+                                )
+                              }
+                              className="w-[10ch] border border-gray-300 rounded-[4px] px-2 py-1.5 bg-white focus:outline-none focus:border-[#091a40]"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : null}
+
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Do you use poultry (such as ducks) on your farm to control invertebrate pests?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="usesPoultryForPestControl"
+                  value="yes"
+                  checked={usesPoultryForPestControl === 'yes'}
+                  onChange={(e) => setUsesPoultryForPestControl(e.target.value)}
+                />
+                Yes
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="usesPoultryForPestControl"
+                  value="no"
+                  checked={usesPoultryForPestControl === 'no'}
+                  onChange={(e) => setUsesPoultryForPestControl(e.target.value)}
+                />
+                No
+              </label>
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section3Biosecurity')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5Intro')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section5Intro' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">
+              Section 5 - Sales operation and economic efficiency
+            </h2>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section3ChemicalFollowup')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5Traceability')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section5Traceability' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">
+              Section 5 - Sales operation and economic efficiency
+            </h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Does your business use a system to trace truffles from harvest to final buyer?
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="traceabilitySystem"
+                  value="No traceability system"
+                  checked={traceabilitySystem === 'No traceability system'}
+                  onChange={(e) => setTraceabilitySystem(e.target.value)}
+                />
+                No traceability system
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="traceabilitySystem"
+                  value="Yes - informal (e.g. personal records, memory-based, basic notes)"
+                  checked={
+                    traceabilitySystem ===
+                    'Yes - informal (e.g. personal records, memory-based, basic notes)'
+                  }
+                  onChange={(e) => setTraceabilitySystem(e.target.value)}
+                />
+                Yes - informal (e.g. personal records, memory-based, basic notes)
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="traceabilitySystem"
+                  value="Yes - basic written or spreadsheet records"
+                  checked={traceabilitySystem === 'Yes - basic written or spreadsheet records'}
+                  onChange={(e) => setTraceabilitySystem(e.target.value)}
+                />
+                Yes - basic written or spreadsheet records
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="traceabilitySystem"
+                  value="Yes - digital system (farm software, QR code, batch ID, or equivalent)"
+                  checked={
+                    traceabilitySystem ===
+                    'Yes - digital system (farm software, QR code, batch ID, or equivalent)'
+                  }
+                  onChange={(e) => setTraceabilitySystem(e.target.value)}
+                />
+                Yes - digital system (farm software, QR code, batch ID, or equivalent)
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="traceabilitySystem"
+                  value="Yes - certified or audited traceability system (e.g. organic certification, GI/PDO, blockchain-based, or third-party audited)"
+                  checked={
+                    traceabilitySystem ===
+                    'Yes - certified or audited traceability system (e.g. organic certification, GI/PDO, blockchain-based, or third-party audited)'
+                  }
+                  onChange={(e) => setTraceabilitySystem(e.target.value)}
+                />
+                Yes - certified or audited traceability system (e.g. organic certification, GI/PDO,
+                blockchain-based, or third-party audited)
+              </label>
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5Intro')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5FutureProducts')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'section5FutureProducts' ? (
+          <section className="p-6 bg-white text-sm text-gray-700 space-y-6">
+            <h2 className="text-2xl font-semibold text-[#091a40]">
+              Section 5 - Sales operation and economic efficiency
+            </h2>
+            <div className="space-y-3">
+              <p className="text-base text-gray-800">
+                Do you plan to produce any of the following products within in the next 5 years?
+                Choose all that apply.
+              </p>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={plannedProductsIn5Years.includes('Fresh Truffles')}
+                  onChange={() => toggleMultiSelect('Fresh Truffles', setPlannedProductsIn5Years)}
+                />
+                Fresh Truffles
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={plannedProductsIn5Years.includes('Truffle Salt')}
+                  onChange={() => toggleMultiSelect('Truffle Salt', setPlannedProductsIn5Years)}
+                />
+                Truffle Salt
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={plannedProductsIn5Years.includes('Truffle Honey')}
+                  onChange={() => toggleMultiSelect('Truffle Honey', setPlannedProductsIn5Years)}
+                />
+                Truffle Honey
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={plannedProductsIn5Years.includes('Truffle Butter')}
+                  onChange={() => toggleMultiSelect('Truffle Butter', setPlannedProductsIn5Years)}
+                />
+                Truffle Butter
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={plannedProductsIn5Years.includes('Truffle Paste')}
+                  onChange={() => toggleMultiSelect('Truffle Paste', setPlannedProductsIn5Years)}
+                />
+                Truffle Paste
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={plannedProductsIn5Years.includes('Frozen Truffles')}
+                  onChange={() => toggleMultiSelect('Frozen Truffles', setPlannedProductsIn5Years)}
+                />
+                Frozen Truffles
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={plannedProductsIn5Years.includes('Freeze-dried Truffle powder')}
+                  onChange={() =>
+                    toggleMultiSelect('Freeze-dried Truffle powder', setPlannedProductsIn5Years)
+                  }
+                />
+                Freeze-dried Truffle powder
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={plannedProductsIn5Years.includes(
+                    'New truffle flavour product from this research program',
+                  )}
+                  onChange={() =>
+                    toggleMultiSelect(
+                      'New truffle flavour product from this research program',
+                      setPlannedProductsIn5Years,
+                    )
+                  }
+                />
+                New truffle flavour product from this research program
+              </label>
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage('section5Traceability')}
+                className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded hover:bg-gray-50 transition-colors"
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage('final')}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors flex items-center font-medium"
+              >
+                Next page <span className="ml-2 font-bold">&gt;</span>
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {currentPage === 'final' ? (
+          <section className="border border-gray-200 rounded-md p-6 bg-[#f8f9fa] text-sm text-gray-700 space-y-4">
+            <h2 className="text-xl font-semibold text-[#091a40]">Thank You</h2>
+            <p>
+              Thank you for take time to participate in this survey, you can close the window now.
+            </p>
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={handleCloseWindow}
+                className="bg-[#091a40] text-white px-6 py-2.5 rounded hover:bg-[#071433] transition-colors font-medium"
+              >
+                Close window
+              </button>
+            </div>
+          </section>
+        ) : null}
       </main>
     </div>
   );

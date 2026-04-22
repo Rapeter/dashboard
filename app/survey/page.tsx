@@ -1984,6 +1984,7 @@ export default function SurveyForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProgress, setIsLoadingProgress] = useState(true);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [disableAutoSave, setDisableAutoSave] = useState(false);
   const [hasSubmittedRecord, setHasSubmittedRecord] = useState(false);
   const [lastSubmittedAtDisplay, setLastSubmittedAtDisplay] = useState('N/A');
   const [csvAnswers, setCsvAnswers] = useState<Record<string, string | string[]>>(DEFAULT_CSV_ANSWERS);
@@ -2178,7 +2179,7 @@ export default function SurveyForm() {
           ...EMPTY_CONSENT_SIGNATURE,
           ...(payload.consentSignature ?? {}),
         });
-        setConsent(asString(payload.consent));
+        setConsent(progress.status === 'submitted' ? 'yes' : asString(payload.consent));
         setBackgroundEmail(asString(payload.backgroundEmail));
         setBackgroundPostcode(asString(payload.backgroundPostcode));
         setStudyYear(asString(payload.studyYear));
@@ -2268,7 +2269,7 @@ export default function SurveyForm() {
   }, []);
 
   useEffect(() => {
-    if (isLoadingProgress || isSubmitting) {
+    if (isLoadingProgress || isSubmitting || disableAutoSave) {
       return;
     }
 
@@ -2296,7 +2297,7 @@ export default function SurveyForm() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [currentPage, hasSubmittedRecord, isLoadingProgress, isSubmitting, progressPayload]);
+  }, [currentPage, disableAutoSave, hasSubmittedRecord, isLoadingProgress, isSubmitting, progressPayload]);
 
   const toggleIndustryWorkType = (workType: string) => {
     setIndustryWorkTypes((prev) =>
@@ -2357,8 +2358,16 @@ export default function SurveyForm() {
     setter((prev) => (prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]));
   };
 
-  const handleConsentNextPage = () => {
+  const handleConsentNextPage = async () => {
     if (consent === 'no') {
+      if (!hasSubmittedRecord) {
+        setDisableAutoSave(true);
+        try {
+          await fetch('/api/survey/progress', { method: 'DELETE' });
+        } catch {
+          // Ignore cleanup failures so users can still continue.
+        }
+      }
       setIsFinalPageFromSubmit(false);
       setCurrentPage('final');
       return;
@@ -2676,21 +2685,24 @@ export default function SurveyForm() {
                   type="radio"
                   name="consent"
                   value="yes"
-                  checked={consent === 'yes'}
+                  checked={hasSubmittedRecord ? true : consent === 'yes'}
+                  disabled={hasSubmittedRecord}
                   onChange={(e) => setConsent(e.target.value)}
                 />
                 Yes
               </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="consent"
-                  value="no"
-                  checked={consent === 'no'}
-                  onChange={(e) => setConsent(e.target.value)}
-                />
-                No
-              </label>
+              {hasSubmittedRecord ? null : (
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="consent"
+                    value="no"
+                    checked={consent === 'no'}
+                    onChange={(e) => setConsent(e.target.value)}
+                  />
+                  No
+                </label>
+              )}
             </div>
             <div className="flex justify-between pt-2">
               <button
@@ -2702,10 +2714,10 @@ export default function SurveyForm() {
               </button>
               <button
                 type="button"
-                disabled={!consent}
+                disabled={hasSubmittedRecord ? false : !consent}
                 onClick={handleConsentNextPage}
                 className={`px-6 py-2.5 rounded transition-colors flex items-center font-medium ${
-                  consent
+                  hasSubmittedRecord || consent
                     ? 'bg-[#091a40] text-white hover:bg-[#071433]'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}

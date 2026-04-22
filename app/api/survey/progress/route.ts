@@ -64,3 +64,27 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function DELETE() {
+  try {
+    const userId = await getSessionUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await ensureSchema();
+    const result = await withTransaction((client) =>
+      client.query(
+        `DELETE FROM survey.user_survey_progress
+         WHERE auth_user_id = $1
+           AND status = 'draft'`,
+        [userId],
+      ),
+    );
+
+    return NextResponse.json({ ok: true, deleted: result.rowCount ?? 0 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unexpected server error.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
